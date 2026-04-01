@@ -8,6 +8,7 @@ router.register("workout-types", views.WorkoutTypeViewSet)
 router.register("body-parts", views.BodyPartViewSet)
 router.register("equipment", views.EquipmentViewSet)
 router.register("tags", views.TagViewSet)
+router.register("training-types", views.TrainingTypeViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),

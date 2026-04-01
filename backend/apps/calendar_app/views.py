@@ -1,17 +1,25 @@
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
+from datetime import datetime, timedelta
 from common.permissions import IsOwner
-from .models import CalendarEvent, EventInviteResponse
+from .models import (
+    CalendarEvent, EventInviteResponse,
+    ScheduledQuickTraining, ScheduledWorkout
+)
 from .serializers import (
     CalendarEventListSerializer,
     CalendarEventDetailSerializer,
     CalendarEventCreateSerializer,
     InviteSerializer,
     RespondSerializer,
+    ScheduledQuickTrainingSerializer,
+    ScheduledWorkoutSerializer,
+    CalendarDaySerializer,
 )
 
 User = get_user_model()
@@ -68,3 +76,84 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         invite_resp.responded_at = timezone.now()
         invite_resp.save()
         return Response({"status": invite_resp.status})
+
+
+# ─── Scheduled Activities ViewSets ───
+
+
+class ScheduledQuickTrainingViewSet(viewsets.ModelViewSet):
+    """API for scheduled quick trainings"""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ScheduledQuickTrainingSerializer
+    ordering_fields = ["scheduled_date", "start_time"]
+
+    def get_queryset(self):
+        return ScheduledQuickTraining.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def check_object_permissions(self, request, obj):
+        if obj.user != request.user:
+            self.permission_denied(request)
+
+
+class ScheduledWorkoutViewSet(viewsets.ModelViewSet):
+    """API for scheduled workouts"""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ScheduledWorkoutSerializer
+    ordering_fields = ["scheduled_date", "start_time"]
+
+    def get_queryset(self):
+        return ScheduledWorkout.objects.filter(user=self.request.user).select_related("workout")
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def check_object_permissions(self, request, obj):
+        if obj.user != request.user:
+            self.permission_denied(request)
+
+
+class CalendarWeekView(generics.ListAPIView):
+    """Get all scheduled activities for a week (infinite scroll)"""
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = CalendarDaySerializer
+
+    def get(self, request, *args, **kwargs):
+        # Get start_date from query params (e.g., 2026-04-01)
+        start_date_str = request.query_params.get("start_date")
+        num_days = int(request.query_params.get("num_days", 30))  # Default 30 days for scroll
+
+        try:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid start_date format (YYYY-MM-DD)"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        end_date = start_date + timedelta(days=num_days)
+        days_data = []
+
+        for i in range(num_days):
+            current_date = start_date + timedelta(days=i)
+            quick_trainings = ScheduledQuickTraining.objects.filter(
+                user=request.user,
+                scheduled_date=current_date
+            ).order_by("start_time")
+            workouts = ScheduledWorkout.objects.filter(
+                user=request.user,
+                scheduled_date=current_date
+            ).order_by("start_time").select_related("workout")
+
+            day_data = {
+                "date": current_date,
+                "quick_trainings": quick_trainings,
+                "workouts": workouts,
+            }
+            days_data.append(day_data)
+
+        ser = CalendarDaySerializer(days_data, many=True)
+        return Response(ser.data)
+

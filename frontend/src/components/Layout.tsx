@@ -387,7 +387,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </Badge>
           </IconButton>
         </Box>
-        <Box component="main" sx={{ flex: 1, p: { xs: 2, sm: 3, md: 4 }, maxWidth: 960, mx: "auto", width: "100%" }}>
+        <Box component="main" sx={{ flex: 1, p: location.pathname === "/calendar" ? 0 : { xs: 2, sm: 3, md: 4 }, maxWidth: location.pathname === "/calendar" ? "100%" : 960, mx: "auto", width: "100%" }}>
           {children}
         </Box>
       </Box>

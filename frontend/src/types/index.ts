@@ -262,3 +262,44 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+// Scheduled Activities (Calendar)
+export interface TrainingType {
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  icon: string;
+}
+
+export interface ScheduledQuickTraining {
+  id: number;
+  user: number;
+  training_type: number;
+  training_type_name?: string;
+  scheduled_date: string;
+  start_time: string;
+  end_time?: string;
+  duration_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScheduledWorkout {
+  id: number;
+  user: number;
+  workout: number;
+  workout_title?: string;
+  scheduled_date: string;
+  start_time: string;
+  end_time?: string;
+  total_duration_minutes: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CalendarDayData {
+  date: string;
+  quick_trainings: ScheduledQuickTraining[];
+  workouts: ScheduledWorkout[];
+}

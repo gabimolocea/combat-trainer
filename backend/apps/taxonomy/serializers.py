@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import MartialStyle, WorkoutType, BodyPart, Equipment, Tag
+from .models import MartialStyle, WorkoutType, BodyPart, Equipment, Tag, TrainingType
 
 
 class MartialStyleSerializer(serializers.ModelSerializer):
@@ -30,3 +30,9 @@ class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ["id", "name", "slug"]
+
+
+class TrainingTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TrainingType
+        fields = ["id", "name", "slug", "description", "icon"]

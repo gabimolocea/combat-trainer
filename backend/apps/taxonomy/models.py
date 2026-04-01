@@ -58,3 +58,17 @@ class Tag(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class TrainingType(models.Model):
+    """Quick training types (Run, Cycling, Swimming, etc.)"""
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, blank=True, default="")  # emoji or icon name
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name

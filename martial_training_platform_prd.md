@@ -187,6 +187,8 @@ UI stack:
 - React Query / TanStack Query
 - React Router
 - Zod for validation
+- Font Geist
+- UI Style similar to mobbin.com
 
 ## 8.3 Media
 - S3 / Cloudflare R2 / Backblaze B2

@@ -172,22 +172,26 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
   const isExercise = item.type === "exercise";
   const isSpecial = item.type === "warmup" || item.type === "cooldown" || item.type === "rest";
 
-  const handleExerciseSelect = (selectedExercise: any) => {
-    onUpdate({
-      exercise: selectedExercise.id,
-      exercise_title: selectedExercise.title,
-    });
-    setSelectorOpen(false);
-  };
-
-  const handleTypeChange = (val: number) => {
-    if (val === -1 && onChangeType) {
-      onChangeType("rest");
-    } else if (val === -2 && onChangeType) {
-      onChangeType("cooldown");
-    } else if (val === -3 && onChangeType) {
-      onChangeType("warmup");
+  const handleItemSelect = (selectedItem: any) => {
+    // Check if it's a special item (Rest, Cool Down, Warm Up)
+    if (selectedItem.type === "rest" || selectedItem.type === "cooldown" || selectedItem.type === "warmup") {
+      // Convert to proper type string
+      const typeMap: { [key: string]: "exercise" | "warmup" | "cooldown" | "rest" } = {
+        "rest": "rest",
+        "cooldown": "cooldown",
+        "warmup": "warmup",
+      };
+      if (onChangeType) {
+        onChangeType(typeMap[selectedItem.type]);
+      }
+    } else {
+      // It's a regular exercise
+      onUpdate({
+        exercise: selectedItem.id,
+        exercise_title: selectedItem.title,
+      });
     }
+    setSelectorOpen(false);
   };
 
   return (
@@ -221,55 +225,22 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
         {/* Content */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack spacing={1.5}>
-            {/* Item Type Selection */}
-            {isExercise ? (
-              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={() => setSelectorOpen(true)}
-                  sx={{ flex: 1, justifyContent: "flex-start", textTransform: "none" }}
-                >
-                  {(item as Exercise).exercise_title || "Select Exercise"}
-                </Button>
-                <TextField
-                  select
-                  label="Switch"
-                  size="small"
-                  value=""
-                  onChange={(e) => handleTypeChange(parseInt(e.target.value))}
-                  sx={{ width: "120px" }}
-                >
-                  <MenuItem value="" disabled>
-                    Switch Type
-                  </MenuItem>
-                  <MenuItem value={-1}>Rest</MenuItem>
-                  <MenuItem value={-2}>Cool Down</MenuItem>
-                  <MenuItem value={-3}>Warm Up</MenuItem>
-                </TextField>
-              </Box>
-            ) : (
-              <TextField
-                select
-                label="Type"
-                size="small"
-                value={item.type === "rest" ? -1 : item.type === "cooldown" ? -2 : -3}
-                onChange={(e) => handleTypeChange(parseInt(e.target.value))}
-                fullWidth
-              >
-                <MenuItem value={-1}>Rest</MenuItem>
-                <MenuItem value={-2}>Cool Down</MenuItem>
-                <MenuItem value={-3}>Warm Up</MenuItem>
-                <MenuItem value={0} disabled sx={{ fontWeight: "bold" }}>
-                  ─ Exercises ─
-                </MenuItem>
-                {allExercises?.map((ex: any) => (
-                  <MenuItem key={ex.id} value={ex.id}>
-                    {ex.title}
-                  </MenuItem>
-                ))}
-              </TextField>
-            )}
+            {/* Item Selector Button - Works for both exercises and special items */}
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setSelectorOpen(true)}
+              sx={{ justifyContent: "flex-start", textTransform: "none" }}
+              fullWidth
+            >
+              {isExercise
+                ? (item as Exercise).exercise_title || "Select Item"
+                : item.type === "rest"
+                ? "Rest"
+                : item.type === "cooldown"
+                ? "Cool Down"
+                : "Warm Up"}
+            </Button>
 
             {/* Regular Exercise Section */}
             {isExercise && (
@@ -428,11 +399,11 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
         fullWidth
         PaperProps={{ sx: { height: "80vh" } }}
       >
-        <DialogTitle>Select Exercise</DialogTitle>
+        <DialogTitle>Select Exercise or Special Section</DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           <ExerciseSelector
             exercises={allExercises}
-            onSelect={handleExerciseSelect}
+            onSelect={handleItemSelect}
             onClose={() => setSelectorOpen(false)}
           />
         </DialogContent>

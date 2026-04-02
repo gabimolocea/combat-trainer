@@ -13,6 +13,7 @@ import {
   ListItemText,
   Paper,
   InputAdornment,
+  Divider,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
@@ -35,10 +36,32 @@ interface ExercisePreview {
   }>;
 }
 
+interface SpecialItem {
+  id: string;
+  type: "rest" | "cooldown" | "warmup";
+  title: string;
+}
+
+type SelectableItem = ExercisePreview | SpecialItem;
+
 interface ExerciseSelectorProps {
   exercises: any[];
-  onSelect: (exercise: ExercisePreview) => void;
+  onSelect: (item: SelectableItem) => void;
   onClose: () => void;
+}
+
+const SPECIAL_ITEMS: SpecialItem[] = [
+  { id: "rest", type: "rest", title: "Rest" },
+  { id: "cooldown", type: "cooldown", title: "Cool Down" },
+  { id: "warmup", type: "warmup", title: "Warm Up" },
+];
+
+function isExercise(item: SelectableItem): item is ExercisePreview {
+  return "slug" in item && "difficulty_level" in item;
+}
+
+function isSpecial(item: SelectableItem): item is SpecialItem {
+  return "type" in item && (item.type === "rest" || item.type === "cooldown" || item.type === "warmup");
 }
 
 export default function ExerciseSelector({
@@ -47,8 +70,8 @@ export default function ExerciseSelector({
   onClose,
 }: ExerciseSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedExercise, setSelectedExercise] = useState<ExercisePreview | null>(
-    exercises.length > 0 ? exercises[0] : null
+  const [selectedItem, setSelectedItem] = useState<SelectableItem | null>(
+    SPECIAL_ITEMS[0]
   );
   const [selectedBodyParts, setSelectedBodyParts] = useState<string[]>([]);
 
@@ -61,34 +84,43 @@ export default function ExerciseSelector({
     return Array.from(parts).sort();
   }, [exercises]);
 
-  // Filter exercises based on search and body parts
-  const filteredExercises = useMemo(() => {
-    return exercises.filter((ex) => {
+  // Filter and combine special items and exercises
+  const filteredItems = useMemo(() => {
+    const allItems: SelectableItem[] = [...SPECIAL_ITEMS, ...exercises];
+    
+    return allItems.filter((item) => {
+      if (isSpecial(item)) {
+        return item.title.toLowerCase().includes(searchQuery.toLowerCase());
+      }
+
       const matchesSearch =
-        ex.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ex.short_description?.toLowerCase().includes(searchQuery.toLowerCase());
+        item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.short_description?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesBodyParts =
         selectedBodyParts.length === 0 ||
-        selectedBodyParts.some((bp) => ex.body_part_slugs?.includes(bp));
+        selectedBodyParts.some((bp) => item.body_part_slugs?.includes(bp));
 
       return matchesSearch && matchesBodyParts;
     });
   }, [exercises, searchQuery, selectedBodyParts]);
 
-  const handleSelectExercise = (exercise: ExercisePreview) => {
-    setSelectedExercise(exercise);
+  const handleSelectItem = (item: SelectableItem) => {
+    setSelectedItem(item);
   };
 
   const handleConfirm = () => {
-    if (selectedExercise) {
-      onSelect(selectedExercise);
+    if (selectedItem) {
+      onSelect(selectedItem);
     }
   };
 
-  const getImageUrl = (exercise: ExercisePreview) => {
-    if (exercise.media && exercise.media.length > 0) {
-      return exercise.media[0].image;
+  const getImageUrl = (item: SelectableItem) => {
+    if (isSpecial(item)) {
+      return "https://via.placeholder.com/400x500?text=" + item.title.replace(" ", "+");
+    }
+    if (item.media && item.media.length > 0) {
+      return item.media[0].image;
     }
     return "https://via.placeholder.com/400x500?text=No+Image";
   };
@@ -127,7 +159,7 @@ export default function ExerciseSelector({
         </Stack>
       </Paper>
 
-      {/* Middle Panel - Exercise List */}
+      {/* Middle Panel - Items List */}
       <Paper sx={{ display: "flex", flexDirection: "column" }}>
         <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
           <TextField
@@ -146,11 +178,46 @@ export default function ExerciseSelector({
           />
         </Box>
         <List sx={{ flex: 1, overflow: "auto" }}>
-          {filteredExercises.map((exercise) => (
-            <ListItem key={exercise.id} disablePadding>
+          {/* Special Items Section */}
+          {filteredItems.filter(isSpecial).map((item) => (
+            <Box key={item.id}>
+              <ListItem disablePadding>
+                <ListItemButton
+                  selected={selectedItem?.id === item.id}
+                  onClick={() => handleSelectItem(item)}
+                  sx={{
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    py: 1.5,
+                    px: 2,
+                    "&.Mui-selected": {
+                      backgroundColor: "action.selected",
+                    },
+                  }}
+                >
+                  <ListItemText
+                    primary={item.title}
+                    secondary="Special Section"
+                    primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
+                    secondaryTypographyProps={{ variant: "caption" }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            </Box>
+          ))}
+
+          {/* Divider between special items and exercises */}
+          {filteredItems.filter(isSpecial).length > 0 &&
+            filteredItems.filter(isExercise).length > 0 && (
+              <Divider sx={{ my: 1 }} />
+            )}
+
+          {/* Exercises Section */}
+          {filteredItems.filter(isExercise).map((item) => (
+            <ListItem key={item.id} disablePadding>
               <ListItemButton
-                selected={selectedExercise?.id === exercise.id}
-                onClick={() => handleSelectExercise(exercise)}
+                selected={selectedItem?.id === item.id}
+                onClick={() => handleSelectItem(item)}
                 sx={{
                   flexDirection: "column",
                   alignItems: "flex-start",
@@ -162,18 +229,19 @@ export default function ExerciseSelector({
                 }}
               >
                 <ListItemText
-                  primary={exercise.title}
-                  secondary={exercise.short_description}
+                  primary={item.title}
+                  secondary={item.short_description}
                   primaryTypographyProps={{ variant: "body2", fontWeight: 500 }}
                   secondaryTypographyProps={{ variant: "caption" }}
                 />
               </ListItemButton>
             </ListItem>
           ))}
-          {filteredExercises.length === 0 && (
+
+          {filteredItems.length === 0 && (
             <Box sx={{ p: 2, textAlign: "center" }}>
               <Typography variant="body2" color="textSecondary">
-                No exercises found
+                No items found
               </Typography>
             </Box>
           )}
@@ -181,7 +249,7 @@ export default function ExerciseSelector({
       </Paper>
 
       {/* Right Panel - Preview */}
-      {selectedExercise && (
+      {selectedItem && (
         <Paper
           sx={{
             display: "flex",
@@ -190,11 +258,11 @@ export default function ExerciseSelector({
             p: 2,
           }}
         >
-          {/* Exercise Image */}
+          {/* Item Image */}
           <CardMedia
             component="img"
-            image={getImageUrl(selectedExercise)}
-            alt={selectedExercise.title}
+            image={getImageUrl(selectedItem)}
+            alt={selectedItem.title}
             sx={{
               height: 200,
               objectFit: "cover",
@@ -203,61 +271,69 @@ export default function ExerciseSelector({
             }}
           />
 
-          {/* Exercise Details */}
+          {/* Item Details */}
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-            {selectedExercise.title}
+            {selectedItem.title}
           </Typography>
 
-          {selectedExercise.difficulty_level && (
+          {isSpecial(selectedItem) && (
+            <Typography variant="body2" color="primary" sx={{ mb: 2, fontWeight: 500 }}>
+              Special Section - {selectedItem.type === "rest" ? "Rest period" : selectedItem.type === "cooldown" ? "Cool down section" : "Warm up section"}
+            </Typography>
+          )}
+
+          {isExercise(selectedItem) && selectedItem.difficulty_level && (
             <Chip
-              label={`Difficulty: ${selectedExercise.difficulty_level}`}
+              label={`Difficulty: ${selectedItem.difficulty_level}`}
               size="small"
               variant="outlined"
               sx={{ mb: 1, width: "fit-content" }}
             />
           )}
 
-          {selectedExercise.short_description && (
+          {isExercise(selectedItem) && selectedItem.short_description && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" sx={{ fontWeight: 600, display: "block" }}>
                 Description
               </Typography>
               <Typography variant="caption" color="textSecondary">
-                {selectedExercise.short_description}
+                {selectedItem.short_description}
               </Typography>
             </Box>
           )}
 
-          {selectedExercise.instructions && (
+          {isExercise(selectedItem) && selectedItem.instructions && (
             <Box sx={{ mb: 2 }}>
               <Typography variant="caption" sx={{ fontWeight: 600, display: "block" }}>
                 Instructions
               </Typography>
               <Typography variant="caption" color="textSecondary" sx={{ display: "block" }}>
-                {selectedExercise.instructions.substring(0, 150)}
-                {selectedExercise.instructions.length > 150 ? "..." : ""}
+                {selectedItem.instructions.substring(0, 150)}
+                {selectedItem.instructions.length > 150 ? "..." : ""}
               </Typography>
             </Box>
           )}
 
           {/* Body Parts */}
-          {selectedExercise.body_part_slugs && selectedExercise.body_part_slugs.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
-                Body Parts
-              </Typography>
-              <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
-                {selectedExercise.body_part_slugs.map((part) => (
-                  <Chip
-                    key={part}
-                    label={part}
-                    size="small"
-                    variant="outlined"
-                  />
-                ))}
-              </Stack>
-            </Box>
-          )}
+          {isExercise(selectedItem) &&
+            selectedItem.body_part_slugs &&
+            selectedItem.body_part_slugs.length > 0 && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
+                  Body Parts
+                </Typography>
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+                  {selectedItem.body_part_slugs.map((part) => (
+                    <Chip
+                      key={part}
+                      label={part}
+                      size="small"
+                      variant="outlined"
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            )}
 
           {/* Action Buttons */}
           <Stack direction="row" spacing={1} sx={{ mt: "auto" }}>

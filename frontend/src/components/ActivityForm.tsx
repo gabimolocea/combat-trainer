@@ -43,7 +43,12 @@ export default function ActivityForm({
   });
   const [error, setError] = useState("");
   const [creatingWorkout, setCreatingWorkout] = useState(false);
-  const [newWorkoutTitle, setNewWorkoutTitle] = useState("");
+  const [newWorkoutData, setNewWorkoutData] = useState({
+    title: "",
+    description: "",
+    difficulty_level: "beginner" as "beginner" | "intermediate" | "advanced" | "expert",
+    estimated_duration_minutes: null as number | null,
+  });
 
   // Fetch training types
   const { data: trainingTypes = [] } = useQuery<TrainingType[]>({
@@ -219,13 +224,15 @@ export default function ActivityForm({
   // Create new workout mutation
   const createWorkoutMutation = useMutation({
     mutationFn: async () => {
-      if (!newWorkoutTitle.trim()) {
-        setError("workout title is required");
+      if (!newWorkoutData.title.trim()) {
+        setError("Workout title is required");
         return Promise.reject("Workout title required");
       }
       return api.post("/workouts/", {
-        title: newWorkoutTitle.trim(),
-        description: "",
+        title: newWorkoutData.title.trim(),
+        description: newWorkoutData.description.trim(),
+        difficulty_level: newWorkoutData.difficulty_level,
+        estimated_duration_minutes: newWorkoutData.estimated_duration_minutes,
         workout_type: null,
         is_private: true,
       });
@@ -240,7 +247,12 @@ export default function ActivityForm({
       queryClient.invalidateQueries({ queryKey: ["workout-details"] });
       setFormData((prev) => ({ ...prev, workout: String(newWorkoutId) }));
       setCreatingWorkout(false);
-      setNewWorkoutTitle("");
+      setNewWorkoutData({
+        title: "",
+        description: "",
+        difficulty_level: "beginner",
+        estimated_duration_minutes: null,
+      });
       setError("");
     },
     onError: (err: any) => {
@@ -271,7 +283,7 @@ export default function ActivityForm({
     createMutation.isPending || updateMutation.isPending || deleteMutation.isPending || createWorkoutMutation.isPending;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         {editingActivity
           ? "Edit Activity"
@@ -301,20 +313,68 @@ export default function ActivityForm({
             </TextField>
           ) : creatingWorkout ? (
             // Create new workout form
-            <Stack spacing={1.5}>
+            <Stack spacing={2}>
               <TextField
-                label="New Workout Title"
-                value={newWorkoutTitle}
-                onChange={(e) => setNewWorkoutTitle(e.target.value)}
+                label="Workout Title"
+                value={newWorkoutData.title}
+                onChange={(e) =>
+                  setNewWorkoutData({ ...newWorkoutData, title: e.target.value })
+                }
                 fullWidth
                 placeholder="e.g., Morning Run, Strength Training"
                 autoFocus
+                required
+              />
+              <TextField
+                label="Description"
+                value={newWorkoutData.description}
+                onChange={(e) =>
+                  setNewWorkoutData({ ...newWorkoutData, description: e.target.value })
+                }
+                fullWidth
+                multiline
+                rows={3}
+                placeholder="Describe your workout..."
+              />
+              <TextField
+                label="Difficulty Level"
+                select
+                value={newWorkoutData.difficulty_level}
+                onChange={(e) =>
+                  setNewWorkoutData({
+                    ...newWorkoutData,
+                    difficulty_level: e.target.value as "beginner" | "intermediate" | "advanced" | "expert",
+                  })
+                }
+                fullWidth
+              >
+                <MenuItem value="beginner">Beginner</MenuItem>
+                <MenuItem value="intermediate">Intermediate</MenuItem>
+                <MenuItem value="advanced">Advanced</MenuItem>
+                <MenuItem value="expert">Expert</MenuItem>
+              </TextField>
+              <TextField
+                label="Estimated Duration (minutes)"
+                type="number"
+                value={newWorkoutData.estimated_duration_minutes || ""}
+                onChange={(e) =>
+                  setNewWorkoutData({
+                    ...newWorkoutData,
+                    estimated_duration_minutes: e.target.value
+                      ? parseInt(e.target.value)
+                      : null,
+                  })
+                }
+                fullWidth
+                inputProps={{ min: 5, step: 5 }}
               />
               <Stack direction="row" spacing={1}>
                 <Button
                   variant="contained"
                   onClick={() => createWorkoutMutation.mutate()}
-                  disabled={!newWorkoutTitle.trim() || createWorkoutMutation.isPending}
+                  disabled={
+                    !newWorkoutData.title.trim() || createWorkoutMutation.isPending
+                  }
                   fullWidth
                 >
                   Create & Select
@@ -323,7 +383,12 @@ export default function ActivityForm({
                   variant="outlined"
                   onClick={() => {
                     setCreatingWorkout(false);
-                    setNewWorkoutTitle("");
+                    setNewWorkoutData({
+                      title: "",
+                      description: "",
+                      difficulty_level: "beginner",
+                      estimated_duration_minutes: null,
+                    });
                     setError("");
                   }}
                   disabled={createWorkoutMutation.isPending}

@@ -197,28 +197,6 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
         {/* Content */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack spacing={1.5}>
-            {/* Type Badge */}
-            {isSpecial && (
-              <Box sx={{ display: "inline-flex", width: "fit-content" }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    display: "inline-block",
-                    bgcolor: item.type === "warmup" ? "warning.main" : item.type === "cooldown" ? "info.main" : "error.main",
-                    color: "white",
-                    px: 0.75,
-                    py: 0.25,
-                    borderRadius: 0.5,
-                    fontWeight: 600,
-                    fontSize: "0.7rem",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  {item.type === "warmup" ? "Warm Up" : item.type === "cooldown" ? "Cool Down" : "Rest"}
-                </Typography>
-              </Box>
-            )}
-
             {/* Item Type Selection - Always Visible */}
             <TextField
               select

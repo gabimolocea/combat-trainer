@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -25,10 +25,14 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import AddIcon from "@mui/icons-material/Add";
+import ExerciseSelector from "./ExerciseSelector";
 
 interface Exercise {
   id: string;
@@ -158,6 +162,8 @@ interface DraggableWorkoutItemProps {
 
 function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChangeType }: DraggableWorkoutItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -165,6 +171,24 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
 
   const isExercise = item.type === "exercise";
   const isSpecial = item.type === "warmup" || item.type === "cooldown" || item.type === "rest";
+
+  const handleExerciseSelect = (selectedExercise: any) => {
+    onUpdate({
+      exercise: selectedExercise.id,
+      exercise_title: selectedExercise.title,
+    });
+    setSelectorOpen(false);
+  };
+
+  const handleTypeChange = (val: number) => {
+    if (val === -1 && onChangeType) {
+      onChangeType("rest");
+    } else if (val === -2 && onChangeType) {
+      onChangeType("cooldown");
+    } else if (val === -3 && onChangeType) {
+      onChangeType("warmup");
+    }
+  };
 
   return (
     <Card
@@ -197,43 +221,55 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
         {/* Content */}
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack spacing={1.5}>
-            {/* Item Type Selection - Always Visible */}
-            <TextField
-              select
-              label="Type"
-              size="small"
-              value={isExercise ? (item as Exercise).exercise : item.type === "rest" ? -1 : item.type === "cooldown" ? -2 : -3}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                if (val === -1 && onChangeType) {
-                  onChangeType("rest");
-                } else if (val === -2 && onChangeType) {
-                  onChangeType("cooldown");
-                } else if (val === -3 && onChangeType) {
-                  onChangeType("warmup");
-                } else {
-                  onUpdate({ exercise: val });
-                }
-              }}
-              fullWidth
-            >
-              <MenuItem value={0} disabled>
-                Select Type
-              </MenuItem>
-              
-              {/* Special Items Group */}
-              <MenuItem value={-1}>Rest</MenuItem>
-              <MenuItem value={-2}>Cool Down</MenuItem>
-              <MenuItem value={-3}>Warm Up</MenuItem>
-              
-              {/* Regular Exercises Group */}
-              {allExercises?.length > 0 && <MenuItem disabled sx={{ fontWeight: "bold" }}>─ Exercises ─</MenuItem>}
-              {allExercises?.map((ex: any) => (
-                <MenuItem key={ex.id} value={ex.id}>
-                  {ex.title}
+            {/* Item Type Selection */}
+            {isExercise ? (
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setSelectorOpen(true)}
+                  sx={{ flex: 1, justifyContent: "flex-start", textTransform: "none" }}
+                >
+                  {(item as Exercise).exercise_title || "Select Exercise"}
+                </Button>
+                <TextField
+                  select
+                  label="Switch"
+                  size="small"
+                  value=""
+                  onChange={(e) => handleTypeChange(parseInt(e.target.value))}
+                  sx={{ width: "120px" }}
+                >
+                  <MenuItem value="" disabled>
+                    Switch Type
+                  </MenuItem>
+                  <MenuItem value={-1}>Rest</MenuItem>
+                  <MenuItem value={-2}>Cool Down</MenuItem>
+                  <MenuItem value={-3}>Warm Up</MenuItem>
+                </TextField>
+              </Box>
+            ) : (
+              <TextField
+                select
+                label="Type"
+                size="small"
+                value={item.type === "rest" ? -1 : item.type === "cooldown" ? -2 : -3}
+                onChange={(e) => handleTypeChange(parseInt(e.target.value))}
+                fullWidth
+              >
+                <MenuItem value={-1}>Rest</MenuItem>
+                <MenuItem value={-2}>Cool Down</MenuItem>
+                <MenuItem value={-3}>Warm Up</MenuItem>
+                <MenuItem value={0} disabled sx={{ fontWeight: "bold" }}>
+                  ─ Exercises ─
                 </MenuItem>
-              ))}
-            </TextField>
+                {allExercises?.map((ex: any) => (
+                  <MenuItem key={ex.id} value={ex.id}>
+                    {ex.title}
+                  </MenuItem>
+                ))}
+              </TextField>
+            )}
 
             {/* Regular Exercise Section */}
             {isExercise && (
@@ -383,6 +419,24 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
           </IconButton>
         </Tooltip>
       </Box>
+
+      {/* Exercise Selector Modal */}
+      <Dialog
+        open={selectorOpen}
+        onClose={() => setSelectorOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{ sx: { height: "80vh" } }}
+      >
+        <DialogTitle>Select Exercise</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          <ExerciseSelector
+            exercises={allExercises}
+            onSelect={handleExerciseSelect}
+            onClose={() => setSelectorOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

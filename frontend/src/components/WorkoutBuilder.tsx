@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useState } from "react";
+import { useReducer, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -25,7 +25,6 @@ import {
   Typography,
   IconButton,
   Tooltip,
-  Menu,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -72,6 +71,7 @@ type WorkoutBuilderAction =
   | { type: "ADD_ITEM"; payload: WorkoutItem }
   | { type: "REMOVE_ITEM"; payload: string }
   | { type: "UPDATE_ITEM"; payload: { itemId: string; updates: Partial<WorkoutItem> } }
+  | { type: "CONVERT_ITEM_TYPE"; payload: { itemId: string; newType: "exercise" | "warmup" | "cooldown" | "rest" } }
   | { type: "REORDER_ITEMS"; payload: WorkoutItem[] }
   | { type: "SET_STATE"; payload: WorkoutBuilderState };
 
@@ -104,6 +104,41 @@ function workoutReducer(state: WorkoutBuilderState, action: WorkoutBuilderAction
           e.id === action.payload.itemId ? { ...e, ...action.payload.updates } as WorkoutItem : e
         ),
       };
+    case "CONVERT_ITEM_TYPE": {
+      const { itemId, newType } = action.payload;
+      const itemIndex = state.items.findIndex(i => i.id === itemId);
+      if (itemIndex === -1) return state;
+      
+      const oldItem = state.items[itemIndex];
+      let newItem: WorkoutItem;
+      
+      if (newType === "exercise") {
+        newItem = {
+          id: oldItem.id,
+          type: "exercise",
+          exercise: 0,
+          exercise_title: "",
+          parameterType: "sets_reps",
+          sets: 3,
+          reps: 10,
+          work_seconds: null,
+          rest_type: "rest_seconds",
+          rest_seconds: 60,
+          weight_type: "weight",
+          weight: 0,
+          notes: "",
+        };
+      } else {
+        newItem = {
+          id: oldItem.id,
+          type: newType,
+          parameterType: "time",
+          duration_seconds: 300,
+        };
+      }
+      
+      return { ...state, items: state.items.map((i, idx) => idx === itemIndex ? newItem : i) };
+    }
     case "REORDER_ITEMS":
       return { ...state, items: action.payload };
     case "SET_STATE":
@@ -118,9 +153,10 @@ interface DraggableWorkoutItemProps {
   allExercises: any[];
   onUpdate: (updates: Partial<WorkoutItem>) => void;
   onDelete: () => void;
+  onChangeType?: (newType: "exercise" | "warmup" | "cooldown" | "rest") => void;
 }
 
-function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete }: DraggableWorkoutItemProps) {
+function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChangeType }: DraggableWorkoutItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -178,7 +214,7 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete }: Dragga
                     textTransform: "uppercase",
                   }}
                 >
-                  {item.type === "warmup" ? "🟡 Warm Up" : item.type === "cooldown" ? "🔵 Cool Down" : "⚫ Rest"}
+                  {item.type === "warmup" ? "Incalzire" : item.type === "cooldown" ? "Recuperare" : "Odihna"}
                 </Typography>
               </Box>
             )}
@@ -186,18 +222,37 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete }: Dragga
             {/* Regular Exercise Section */}
             {isExercise && (
               <>
-                {/* Exercise Selection */}
+                {/* Exercise Selection - includes special items */}
                 <TextField
                   select
-                  label="Exercise"
+                  label="Exercitiu"
                   size="small"
                   value={(item as Exercise).exercise}
-                  onChange={(e) => onUpdate({ exercise: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value);
+                    if (val === -1 && onChangeType) {
+                      onChangeType("rest");
+                    } else if (val === -2 && onChangeType) {
+                      onChangeType("cooldown");
+                    } else if (val === -3 && onChangeType) {
+                      onChangeType("warmup");
+                    } else {
+                      onUpdate({ exercise: val });
+                    }
+                  }}
                   fullWidth
                 >
                   <MenuItem value={0} disabled>
-                    Select exercise
+                    Selecteaza exercitiu
                   </MenuItem>
+                  
+                  {/* Special Items Group */}
+                  <MenuItem value={-1}>Odihna</MenuItem>
+                  <MenuItem value={-2}>Recuperare</MenuItem>
+                  <MenuItem value={-3}>Incalzire</MenuItem>
+                  
+                  {/* Regular Exercises Group */}
+                  {allExercises?.length > 0 && <MenuItem disabled sx={{ fontWeight: "bold" }}>─ Exercitii ─</MenuItem>}
                   {allExercises?.map((ex: any) => (
                     <MenuItem key={ex.id} value={ex.id}>
                       {ex.title}
@@ -381,7 +436,6 @@ export default function WorkoutBuilder({
   onStateChange 
 }: WorkoutBuilderProps) {
   const [state, dispatch] = useReducer(workoutReducer, initialState || initialData);
-  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Call onStateChange whenever state changes
   useEffect(() => {
@@ -412,30 +466,6 @@ export default function WorkoutBuilder({
       notes: "",
     };
     dispatch({ type: "ADD_ITEM", payload: newExercise });
-    setAddMenuAnchor(null);
-  };
-
-  const handleAddItem = (itemType: "exercise" | "warmup" | "cooldown" | "rest") => {
-    if (itemType === "exercise") {
-      handleAddExercise();
-    } else {
-      const newSection: SpecialSection = {
-        id: `${itemType}-${Date.now()}`,
-        type: itemType,
-        parameterType: "time",
-        duration_seconds: 300,
-      };
-      dispatch({ type: "ADD_ITEM", payload: newSection });
-      setAddMenuAnchor(null);
-    }
-  };
-
-  const handleOpenAddMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAddMenuAnchor(event.currentTarget);
-  };
-
-  const handleCloseAddMenu = () => {
-    setAddMenuAnchor(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -535,6 +565,15 @@ export default function WorkoutBuilder({
                         payload: item.id,
                       })
                     }
+                    onChangeType={(newType) =>
+                      dispatch({
+                        type: "CONVERT_ITEM_TYPE",
+                        payload: {
+                          itemId: item.id,
+                          newType,
+                        },
+                      })
+                    }
                   />
                 ))}
               </Stack>
@@ -546,35 +585,17 @@ export default function WorkoutBuilder({
           </Typography>
         )}
 
-        {/* Add Button with Menu */}
+        {/* Add Button */}
         <Button
           size="small"
           variant="outlined"
           startIcon={<AddIcon />}
-          onClick={handleOpenAddMenu}
+          onClick={handleAddExercise}
           fullWidth
           sx={{ mt: 2 }}
         >
-          + Add
+          + Adauga
         </Button>
-        <Menu
-          anchorEl={addMenuAnchor}
-          open={Boolean(addMenuAnchor)}
-          onClose={handleCloseAddMenu}
-        >
-          <MenuItem onClick={() => handleAddItem("exercise")}>
-            🏋️ Exercise
-          </MenuItem>
-          <MenuItem onClick={() => handleAddItem("warmup")}>
-            🟡 Warm Up
-          </MenuItem>
-          <MenuItem onClick={() => handleAddItem("cooldown")}>
-            🔵 Cool Down
-          </MenuItem>
-          <MenuItem onClick={() => handleAddItem("rest")}>
-            ⚫ Rest
-          </MenuItem>
-        </Menu>
       </Box>
     </Stack>
   );

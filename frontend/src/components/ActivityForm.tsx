@@ -15,7 +15,6 @@ import {
   Stack,
   Card,
   CardContent,
-  Link,
   Typography,
 } from "@mui/material";
 import api from "@/api/client";
@@ -435,12 +434,173 @@ export default function ActivityForm({
           ? "Edit Activity"
           : `Schedule ${activityType === "quick_training" ? "Quick Training" : "Workout"}`}
       </DialogTitle>
-      <DialogContent sx={{ maxHeight: creatingWorkout ? "85vh" : "70vh", overflowY: "auto" }}>
+      <DialogContent sx={{ maxHeight: creatingWorkout ? "85vh" : "80vh", overflowY: "auto" }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
-          {/* Activity Type Selector */}
-          {activityType === "quick_training" ? (
+          {/* When editing: show workout details first and prominently */}
+          {editingActivity && activityType === "workout" && selectedWorkoutDetails && (
+            <>
+              <Box sx={{ mb: 1 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+                  {selectedWorkoutDetails.title}
+                </Typography>
+                {selectedWorkoutDetails.description && (
+                  <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+                    {selectedWorkoutDetails.description}
+                  </Typography>
+                )}
+                <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+                  {selectedWorkoutDetails.difficulty_level && (
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        Difficulty:
+                      </Typography>
+                      <Typography variant="caption" sx={{ textTransform: "capitalize" }}>
+                        {selectedWorkoutDetails.difficulty_level}
+                      </Typography>
+                    </Box>
+                  )}
+                  {selectedWorkoutDetails.estimated_duration_minutes && (
+                    <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                        Est. Duration:
+                      </Typography>
+                      <Typography variant="caption">
+                        {selectedWorkoutDetails.estimated_duration_minutes} min
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Workout Blocks and Exercises - Prominent Display */}
+              {selectedWorkoutDetails.blocks && selectedWorkoutDetails.blocks.length > 0 && (
+                <Card sx={{ bgcolor: "background.default", border: "1px solid", borderColor: "divider", mb: 2 }}>
+                  <CardContent sx={{ pb: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                      Workout Structure
+                    </Typography>
+                    <Stack spacing={1}>
+                      {selectedWorkoutDetails.blocks.map((block: any, blockIdx: number) => (
+                        <Card
+                          key={blockIdx}
+                          variant="outlined"
+                          sx={{
+                            bgcolor: "background.default",
+                            p: 1,
+                            border: "1px solid",
+                            borderColor: "action.disabled",
+                          }}
+                        >
+                          <Box sx={{ mb: 0.75 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                display: "inline-block",
+                                bgcolor: "primary.main",
+                                color: "primary.contrastText",
+                                px: 0.75,
+                                py: 0.25,
+                                borderRadius: 0.5,
+                                fontWeight: 600,
+                                fontSize: "0.7rem",
+                              }}
+                            >
+                              {block.block_type.toUpperCase()}
+                            </Typography>
+                            {block.title && (
+                              <Typography variant="caption" sx={{ fontWeight: 600, ml: 1 }}>
+                                {block.title}
+                              </Typography>
+                            )}
+                          </Box>
+                          {block.exercises && block.exercises.length > 0 && (
+                            <Stack spacing={0.5}>
+                              {block.exercises.map((exercise: any, exIdx: number) => (
+                                <Box
+                                  key={exIdx}
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    p: 0.5,
+                                    bgcolor: "background.paper",
+                                    borderRadius: 0.5,
+                                    fontSize: "0.75rem",
+                                  }}
+                                >
+                                  <Typography variant="caption" sx={{ fontWeight: 500, flex: 1 }}>
+                                    {exercise.exercise_title}
+                                  </Typography>
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      gap: 0.75,
+                                      ml: 1,
+                                      fontSize: "0.65rem",
+                                      color: "text.secondary",
+                                    }}
+                                  >
+                                    {exercise.sets && <Box>{exercise.sets}×</Box>}
+                                    {exercise.reps && <Box>{exercise.reps}r</Box>}
+                                    {exercise.work_seconds && <Box>{exercise.work_seconds}s</Box>}
+                                    {exercise.rest_seconds && <Box>R:{exercise.rest_seconds}s</Box>}
+                                  </Box>
+                                </Box>
+                              ))}
+                            </Stack>
+                          )}
+                        </Card>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Scheduling Controls when editing */}
+              <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+                  Schedule
+                </Typography>
+                <Stack spacing={1.5}>
+                  <TextField
+                    type="time"
+                    label="Start Time"
+                    value={formData.start_time}
+                    onChange={(e) =>
+                      setFormData({ ...formData, start_time: e.target.value })
+                    }
+                    fullWidth
+                    InputLabelProps={{ shrink: true }}
+                  />
+                  <TextField
+                    type="number"
+                    label="Duration (minutes)"
+                    value={formData.duration_minutes}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        duration_minutes: parseInt(e.target.value),
+                      })
+                    }
+                    fullWidth
+                    inputProps={{ min: 5, step: 5 }}
+                  />
+                  <TextField
+                    label="Date"
+                    value={selectedDay || ""}
+                    fullWidth
+                    disabled
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Stack>
+              </Box>
+            </>
+          )}
+
+          {/* When NOT editing: show activity type selector */}
+          {!editingActivity && activityType === "quick_training" && (
             <TextField
               select
               label="Training Type"
@@ -457,7 +617,41 @@ export default function ActivityForm({
                 </MenuItem>
               ))}
             </TextField>
-          ) : creatingWorkout ? (
+          )}
+
+          {!editingActivity && activityType === "workout" && !creatingWorkout && (
+            <Stack spacing={1}>
+              <TextField
+                select
+                label="Workout"
+                value={formData.workout}
+                onChange={(e) => {
+                  setFormData({ ...formData, workout: e.target.value });
+                  setError("");
+                }}
+                fullWidth
+                required
+              >
+                <MenuItem value="" disabled>
+                  Select a workout
+                </MenuItem>
+                {workouts.map((workout) => (
+                  <MenuItem key={workout.id} value={workout.id}>
+                    {workout.title}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => setCreatingWorkout(true)}
+              >
+                + Create New Workout
+              </Button>
+            </Stack>
+          )}
+
+          {!editingActivity && activityType === "workout" && creatingWorkout && (
             // Full workout builder interface
             <Stack spacing={2}>
               {/* Basic Info */}
@@ -692,198 +886,31 @@ export default function ActivityForm({
                 + Add Block
               </Button>
             </Stack>
-          ) : (
-            <Stack spacing={1}>
-              <TextField
-                select
-                label="Workout"
-                value={formData.workout}
-                onChange={(e) => {
-                  setFormData({ ...formData, workout: e.target.value });
-                  setError("");
-                }}
-                fullWidth
-                required
-              >
-                <MenuItem value="" disabled>
-                  Select a workout
-                </MenuItem>
-                {workouts.map((workout) => (
-                  <MenuItem key={workout.id} value={workout.id}>
-                    {workout.title}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => setCreatingWorkout(true)}
-              >
-                + Create New Workout
-              </Button>
-            </Stack>
           )}
 
-          {/* Workout Details Display */}
-          {selectedWorkoutDetails && (
+          {/* Workout Details Preview when selecting workout to schedule */}
+          {!editingActivity && !creatingWorkout && activityType === "workout" && selectedWorkoutDetails && (
             <Card sx={{ bgcolor: "action.hover", border: "1px solid", borderColor: "divider" }}>
-              <CardContent sx={{ pb: 2 }}>
-                <Stack spacing={2}>
+              <CardContent sx={{ pb: 1.5 }}>
+                <Stack spacing={1.5}>
                   <Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 1 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <TextField
-                          label="Workout"
-                          value={selectedWorkoutDetails.title}
-                          fullWidth
-                          disabled
-                          size="small"
-                          variant="standard"
-                        />
-                      </Box>
-                      {editingActivity && (
-                        <Link
-                          href={`/workouts/${selectedWorkoutDetails.slug}`}
-                          target="_blank"
-                          rel="noopener"
-                          sx={{ cursor: "pointer", ml: 1, whiteSpace: "nowrap", mt: 1 }}
-                        >
-                          View Full →
-                        </Link>
-                      )}
-                    </Box>
-                  </Box>
-                  {selectedWorkoutDetails.description && (
-                    <TextField
-                      label="Description"
-                      value={selectedWorkoutDetails.description}
-                      fullWidth
-                      disabled
-                      multiline
-                      rows={2}
-                      size="small"
-                      variant="filled"
-                    />
-                  )}
-                  {selectedWorkoutDetails.difficulty_level && (
-                    <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                      <TextField
-                        label="Difficulty"
-                        value={selectedWorkoutDetails.difficulty_level}
-                        fullWidth
-                        disabled
-                        size="small"
-                        variant="filled"
-                        sx={{ flex: 1, minWidth: 150 }}
-                      />
-                      {selectedWorkoutDetails.estimated_duration_minutes && (
-                        <TextField
-                          label="Est. Duration (min)"
-                          value={selectedWorkoutDetails.estimated_duration_minutes}
-                          fullWidth
-                          disabled
-                          size="small"
-                          variant="filled"
-                          sx={{ flex: 1, minWidth: 150 }}
-                        />
-                      )}
-                    </Box>
-                  )}
-                  
-                  {/* Workout Blocks and Exercises */}
-                  {selectedWorkoutDetails.blocks && selectedWorkoutDetails.blocks.length > 0 && (
-                    <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
-                        Workout Structure
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                      {selectedWorkoutDetails.title}
+                    </Typography>
+                    {selectedWorkoutDetails.description && (
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        {selectedWorkoutDetails.description}
                       </Typography>
-                      <Stack spacing={1.5}>
-                        {selectedWorkoutDetails.blocks.map((block: any, blockIdx: number) => (
-                          <Card
-                            key={blockIdx}
-                            variant="outlined"
-                            sx={{
-                              bgcolor: "background.default",
-                              p: 1.5,
-                              border: "1px solid",
-                              borderColor: "divider",
-                            }}
-                          >
-                            <Box sx={{ mb: 1 }}>
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  display: "inline-block",
-                                  bgcolor: "primary.main",
-                                  color: "primary.contrastText",
-                                  px: 1,
-                                  py: 0.5,
-                                  borderRadius: 1,
-                                  fontWeight: 600,
-                                  mb: 0.5,
-                                }}
-                              >
-                                {block.block_type.toUpperCase()}
-                              </Typography>
-                              {block.title && (
-                                <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
-                                  {block.title}
-                                </Typography>
-                              )}
-                            </Box>
-                            {block.exercises && block.exercises.length > 0 && (
-                              <Stack spacing={0.75}>
-                                {block.exercises.map((exercise: any, exIdx: number) => (
-                                  <Box
-                                    key={exIdx}
-                                    sx={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "center",
-                                      p: 0.75,
-                                      bgcolor: "background.paper",
-                                      borderRadius: 1,
-                                      fontSize: "0.85rem",
-                                    }}
-                                  >
-                                    <Box sx={{ flex: 1 }}>
-                                      <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                                        {exercise.exercise_title}
-                                      </Typography>
-                                    </Box>
-                                    <Box
-                                      sx={{
-                                        display: "flex",
-                                        gap: 1.5,
-                                        ml: 1,
-                                        fontSize: "0.75rem",
-                                        color: "text.secondary",
-                                      }}
-                                    >
-                                      {exercise.sets && (
-                                        <Box>{exercise.sets}x</Box>
-                                      )}
-                                      {exercise.reps && (
-                                        <Box>{exercise.reps}r</Box>
-                                      )}
-                                      {exercise.work_seconds && (
-                                        <Box>{exercise.work_seconds}s</Box>
-                                      )}
-                                      {exercise.rest_seconds && (
-                                        <Box>R:{exercise.rest_seconds}s</Box>
-                                      )}
-                                    </Box>
-                                  </Box>
-                                ))}
-                              </Stack>
-                            )}
-                            {block.notes && (
-                              <Typography variant="caption" sx={{ display: "block", mt: 0.75, fontStyle: "italic", color: "text.secondary" }}>
-                                {block.notes}
-                              </Typography>
-                            )}
-                          </Card>
-                        ))}
-                      </Stack>
+                    )}
+                  </Box>
+                  {selectedWorkoutDetails.blocks && selectedWorkoutDetails.blocks.length > 0 && (
+                    <Box>
+                      <Typography variant="caption" sx={{ fontWeight: 600, mb: 0.75, display: "block" }}>
+                        Blocks: {selectedWorkoutDetails.blocks.map((b: any) => b.block_type).join(", ")}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                        {selectedWorkoutDetails.blocks.length} sections
+                      </Typography>
                     </Box>
                   )}
                 </Stack>
@@ -891,41 +918,43 @@ export default function ActivityForm({
             </Card>
           )}
 
-          {/* Time Selector */}
-          <TextField
-            type="time"
-            label="Start Time"
-            value={formData.start_time}
-            onChange={(e) =>
-              setFormData({ ...formData, start_time: e.target.value })
-            }
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
+          {/* Time/Duration/Date selectors for non-editing flows */}
+          {!editingActivity && (
+            <Stack spacing={1.5}>
+              <TextField
+                type="time"
+                label="Start Time"
+                value={formData.start_time}
+                onChange={(e) =>
+                  setFormData({ ...formData, start_time: e.target.value })
+                }
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+              />
 
-          {/* Duration Selector */}
-          <TextField
-            type="number"
-            label="Duration (minutes)"
-            value={formData.duration_minutes}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                duration_minutes: parseInt(e.target.value),
-              })
-            }
-            fullWidth
-            inputProps={{ min: 5, step: 5 }}
-          />
+              <TextField
+                type="number"
+                label="Duration (minutes)"
+                value={formData.duration_minutes}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    duration_minutes: parseInt(e.target.value),
+                  })
+                }
+                fullWidth
+                inputProps={{ min: 5, step: 5 }}
+              />
 
-          {/* Date Display */}
-          <TextField
-            label="Date"
-            value={selectedDay || ""}
-            fullWidth
-            disabled
-            InputLabelProps={{ shrink: true }}
-          />
+              <TextField
+                label="Date"
+                value={selectedDay || ""}
+                fullWidth
+                disabled
+                InputLabelProps={{ shrink: true }}
+              />
+            </Stack>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>

@@ -219,47 +219,47 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
               </Box>
             )}
 
+            {/* Item Type Selection - Always Visible */}
+            <TextField
+              select
+              label="Type"
+              size="small"
+              value={isExercise ? (item as Exercise).exercise : item.type === "rest" ? -1 : item.type === "cooldown" ? -2 : -3}
+              onChange={(e) => {
+                const val = parseInt(e.target.value);
+                if (val === -1 && onChangeType) {
+                  onChangeType("rest");
+                } else if (val === -2 && onChangeType) {
+                  onChangeType("cooldown");
+                } else if (val === -3 && onChangeType) {
+                  onChangeType("warmup");
+                } else {
+                  onUpdate({ exercise: val });
+                }
+              }}
+              fullWidth
+            >
+              <MenuItem value={0} disabled>
+                Select Type
+              </MenuItem>
+              
+              {/* Special Items Group */}
+              <MenuItem value={-1}>Rest</MenuItem>
+              <MenuItem value={-2}>Cool Down</MenuItem>
+              <MenuItem value={-3}>Warm Up</MenuItem>
+              
+              {/* Regular Exercises Group */}
+              {allExercises?.length > 0 && <MenuItem disabled sx={{ fontWeight: "bold" }}>─ Exercises ─</MenuItem>}
+              {allExercises?.map((ex: any) => (
+                <MenuItem key={ex.id} value={ex.id}>
+                  {ex.title}
+                </MenuItem>
+              ))}
+            </TextField>
+
             {/* Regular Exercise Section */}
             {isExercise && (
               <>
-                {/* Exercise Selection - includes special items */}
-                <TextField
-                  select
-                  label="Exercise"
-                  size="small"
-                  value={(item as Exercise).exercise}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value);
-                    if (val === -1 && onChangeType) {
-                      onChangeType("rest");
-                    } else if (val === -2 && onChangeType) {
-                      onChangeType("cooldown");
-                    } else if (val === -3 && onChangeType) {
-                      onChangeType("warmup");
-                    } else {
-                      onUpdate({ exercise: val });
-                    }
-                  }}
-                  fullWidth
-                >
-                  <MenuItem value={0} disabled>
-                    Select Exercise
-                  </MenuItem>
-                  
-                  {/* Special Items Group */}
-                  <MenuItem value={-1}>Rest</MenuItem>
-                  <MenuItem value={-2}>Cool Down</MenuItem>
-                  <MenuItem value={-3}>Warm Up</MenuItem>
-                  
-                  {/* Regular Exercises Group */}
-                  {allExercises?.length > 0 && <MenuItem disabled sx={{ fontWeight: "bold" }}>─ Exercitii ─</MenuItem>}
-                  {allExercises?.map((ex: any) => (
-                    <MenuItem key={ex.id} value={ex.id}>
-                      {ex.title}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
                 {/* Parameters Grid */}
                 <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
                   {/* Parameter Type Selector */}
@@ -381,33 +381,18 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
             {/* Special Section (Warm Up, Cool Down, Rest) */}
             {isSpecial && (
               <>
-                <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1 }}>
+                {(item as SpecialSection).parameterType === "time" && (
                   <TextField
-                    select
-                    label="Type"
+                    label="Duration (seconds)"
+                    type="number"
                     size="small"
-                    value={(item as SpecialSection).parameterType}
+                    value={(item as SpecialSection).duration_seconds || ""}
                     onChange={(e) =>
-                      onUpdate({ parameterType: e.target.value as "open" | "time" })
+                      onUpdate({ duration_seconds: e.target.value ? parseInt(e.target.value) : null })
                     }
-                  >
-                    <MenuItem value="open">Open</MenuItem>
-                    <MenuItem value="time">Time</MenuItem>
-                  </TextField>
-
-                  {(item as SpecialSection).parameterType === "time" && (
-                    <TextField
-                      label="Duration (seconds)"
-                      type="number"
-                      size="small"
-                      value={(item as SpecialSection).duration_seconds || ""}
-                      onChange={(e) =>
-                        onUpdate({ duration_seconds: e.target.value ? parseInt(e.target.value) : null })
-                      }
-                      inputProps={{ min: 0 }}
-                    />
-                  )}
-                </Box>
+                    inputProps={{ min: 0 }}
+                  />
+                )}
               </>
             )}
           </Stack>

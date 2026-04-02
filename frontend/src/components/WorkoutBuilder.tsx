@@ -1,4 +1,4 @@
-import { useReducer, useEffect } from "react";
+import { useReducer, useEffect, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -25,6 +25,7 @@ import {
   Typography,
   IconButton,
   Tooltip,
+  Menu,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
@@ -379,7 +380,8 @@ export default function WorkoutBuilder({
   exercises = [], 
   onStateChange 
 }: WorkoutBuilderProps) {
-  const [state, dispatch] = useReducer(workoutReducer, initialData || initialState);
+  const [state, dispatch] = useReducer(workoutReducer, initialState || initialData);
+  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Call onStateChange whenever state changes
   useEffect(() => {
@@ -410,16 +412,30 @@ export default function WorkoutBuilder({
       notes: "",
     };
     dispatch({ type: "ADD_ITEM", payload: newExercise });
+    setAddMenuAnchor(null);
   };
 
-  const handleAddSpecialSection = (sectionType: "warmup" | "cooldown" | "rest") => {
-    const newSection: SpecialSection = {
-      id: `${sectionType}-${Date.now()}`,
-      type: sectionType,
-      parameterType: "time",
-      duration_seconds: 300,
-    };
-    dispatch({ type: "ADD_ITEM", payload: newSection });
+  const handleAddItem = (itemType: "exercise" | "warmup" | "cooldown" | "rest") => {
+    if (itemType === "exercise") {
+      handleAddExercise();
+    } else {
+      const newSection: SpecialSection = {
+        id: `${itemType}-${Date.now()}`,
+        type: itemType,
+        parameterType: "time",
+        duration_seconds: 300,
+      };
+      dispatch({ type: "ADD_ITEM", payload: newSection });
+      setAddMenuAnchor(null);
+    }
+  };
+
+  const handleOpenAddMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAddMenuAnchor(event.currentTarget);
+  };
+
+  const handleCloseAddMenu = () => {
+    setAddMenuAnchor(null);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -530,44 +546,35 @@ export default function WorkoutBuilder({
           </Typography>
         )}
 
-        {/* Add Buttons */}
-        <Stack spacing={1} sx={{ mt: 2 }}>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={handleAddExercise}
-            fullWidth
-          >
-            + Add Exercise
-          </Button>
-          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleAddSpecialSection("warmup")}
-              disabled={state.items.some((i) => i.type === "warmup")}
-            >
-              🟡 Warm Up
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleAddSpecialSection("cooldown")}
-              disabled={state.items.some((i) => i.type === "cooldown")}
-            >
-              🔵 Cool Down
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleAddSpecialSection("rest")}
-              disabled={state.items.some((i) => i.type === "rest")}
-            >
-              ⚫ Rest
-            </Button>
-          </Box>
-        </Stack>
+        {/* Add Button with Menu */}
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={handleOpenAddMenu}
+          fullWidth
+          sx={{ mt: 2 }}
+        >
+          + Add
+        </Button>
+        <Menu
+          anchorEl={addMenuAnchor}
+          open={Boolean(addMenuAnchor)}
+          onClose={handleCloseAddMenu}
+        >
+          <MenuItem onClick={() => handleAddItem("exercise")}>
+            🏋️ Exercise
+          </MenuItem>
+          <MenuItem onClick={() => handleAddItem("warmup")}>
+            🟡 Warm Up
+          </MenuItem>
+          <MenuItem onClick={() => handleAddItem("cooldown")}>
+            🔵 Cool Down
+          </MenuItem>
+          <MenuItem onClick={() => handleAddItem("rest")}>
+            ⚫ Rest
+          </MenuItem>
+        </Menu>
       </Box>
     </Stack>
   );

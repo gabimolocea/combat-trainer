@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { calendarAPI } from "@/api/calendar";
 import type { TrainingType, Workout } from "@/types";
 import {
@@ -36,7 +35,6 @@ export default function ActivityForm({
   activityType,
   editingActivity,
 }: ActivityFormProps) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     training_type: "",
@@ -46,6 +44,37 @@ export default function ActivityForm({
   });
   const [error, setError] = useState("");
   const [creatingWorkout, setCreatingWorkout] = useState(false);
+  const [newWorkoutData, setNewWorkoutData] = useState({
+    title: "",
+    description: "",
+    difficulty_level: "beginner" as "beginner" | "intermediate" | "advanced" | "expert",
+    estimated_duration_minutes: null as number | null,
+    blocks: [] as Array<{
+      block_type: string;
+      title: string;
+      notes: string;
+      sort_order: number;
+      exercises: Array<{
+        exercise: number;
+        exercise_title: string;
+        sort_order: number;
+        reps: number | null;
+        sets: number | null;
+        work_seconds: number | null;
+        rest_seconds: number | null;
+        notes: string;
+      }>;
+    }>,
+  });
+
+  // Fetch exercise options
+  const { data: exercisesData } = useQuery<any>({
+    queryKey: ["exercises-all-calendar"],
+    queryFn: () =>
+      api.get("/exercises/?page_size=200").then((r) => r.data),
+    enabled: creatingWorkout,
+  });
+  const exercises = exercisesData?.results ?? [];
 
   // Fetch training types
   const { data: trainingTypes = [] } = useQuery<TrainingType[]>({
@@ -221,29 +250,176 @@ export default function ActivityForm({
   // Create new workout mutation
   const createWorkoutMutation = useMutation({
     mutationFn: async () => {
-      // Navigate to workout builder - user will create there and come back
-      navigate("/workout-builder", {
-        state: { returnToDays: selectedDay, returnToCalendar: true },
+      if (!newWorkoutData.title.trim()) {
+        setError("Workout title is required");
+        return Promise.reject("Workout title required");
+      }
+
+      const payload = {
+        title: newWorkoutData.title.trim(),
+        description: newWorkoutData.description.trim(),
+        difficulty_level: newWorkoutData.difficulty_level,
+        estimated_duration_minutes: newWorkoutData.estimated_duration_minutes,
+        blocks: newWorkoutData.blocks.map((b, bi) => ({
+          block_type: b.block_type,
+          title: b.title,
+          notes: b.notes,
+          sort_order: bi + 1,
+          exercises: b.exercises
+            .filter((e) => e.exercise > 0)
+            .map((e, ei) => ({
+              exercise: e.exercise,
+              sort_order: ei + 1,
+              reps: e.reps,
+              sets: e.sets,
+              work_seconds: e.work_seconds,
+              rest_seconds: e.rest_seconds,
+              notes: e.notes,
+            })),
+        })),
+      };
+
+      return api.post("/workouts/", payload);
+    },
+    onSuccess: (response: any) => {
+      const newWorkoutId = response.data?.id;
+      if (!newWorkoutId) {
+        setError("Failed to get workout ID from response");
+        return;
+      }
+      queryClient.invalidateQueries({ queryKey: ["workouts-list"] });
+      queryClient.invalidateQueries({ queryKey: ["workout-details"] });
+      setFormData((prev) => ({ ...prev, workout: String(newWorkoutId) }));
+      setCreatingWorkout(false);
+      setNewWorkoutData({
+        title: "",
+        description: "",
+        difficulty_level: "beginner",
+        estimated_duration_minutes: null,
+        blocks: [],
       });
-      return Promise.resolve();
+      setError("");
+    },
+    onError: (err: any) => {
+      const message = err.response?.data?.detail || err.response?.data?.title?.[0] || "Failed to create workout";
+      setError(message);
     },
   });
 
-  const handleSubmit = () => {
-    // Validation
-    if (activityType === "quick_training" && !formData.training_type) {
-      setError("Please select a training type");
-      return;
-    }
-    if (activityType === "workout" && !formData.workout) {
-      setError("Please select a workout");
-      return;
-    }
+  const addBlock = () => {
+    setNewWorkoutData((prev) => ({
+      ...prev,
+      blocks: [
+        ...prev.blocks,
+        {
+          block_type: "technique",
+          title: "",
+          notes: "",
+          sort_order: prev.blocks.length + 1,
+          exercises: [],
+        },
+      ],
+    }));
+  };
 
-    if (editingActivity) {
-      updateMutation.mutate();
+  const removeBlock = (blockIdx: number) => {
+    setNewWorkoutData((prev) => ({
+      ...prev,
+      blocks: prev.blocks.filter((_, i) => i !== blockIdx),
+    }));
+  };
+
+  const updateBlock = <K extends keyof typeof newWorkoutData.blocks[0]>(
+    blockIdx: number,
+    key: K,
+    value: any
+  ) => {
+    setNewWorkoutData((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b, i) =>
+        i === blockIdx ? { ...b, [key]: value } : b
+      ),
+    }));
+  };
+
+  const addExerciseToBlock = (blockIdx: number) => {
+    setNewWorkoutData((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b, i) =>
+        i === blockIdx
+          ? {
+              ...b,
+              exercises: [
+                ...b.exercises,
+                {
+                  exercise: 0,
+                  exercise_title: "",
+                  sort_order: b.exercises.length + 1,
+                  reps: null,
+                  sets: null,
+                  work_seconds: null,
+                  rest_seconds: null,
+                  notes: "",
+                },
+              ],
+            }
+          : b
+      ),
+    }));
+  };
+
+  const removeExerciseFromBlock = (blockIdx: number, exIdx: number) => {
+    setNewWorkoutData((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b, i) =>
+        i === blockIdx
+          ? { ...b, exercises: b.exercises.filter((_, j) => j !== exIdx) }
+          : b
+      ),
+    }));
+  };
+
+  const updateExerciseEntry = (
+    blockIdx: number,
+    exIdx: number,
+    field: string,
+    value: any
+  ) => {
+    setNewWorkoutData((prev) => ({
+      ...prev,
+      blocks: prev.blocks.map((b, i) =>
+        i === blockIdx
+          ? {
+              ...b,
+              exercises: b.exercises.map((e, j) =>
+                j === exIdx ? { ...e, [field]: value } : e
+              ),
+            }
+          : b
+      ),
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (creatingWorkout) {
+      // Creating new workout
+      createWorkoutMutation.mutate();
     } else {
-      createMutation.mutate();
+      // Scheduling activity
+      if (activityType === "quick_training" && !formData.training_type) {
+        setError("Please select a training type");
+        return;
+      }
+      if (activityType === "workout" && !formData.workout) {
+        setError("Please select a workout");
+        return;
+      }
+
+      if (editingActivity) {
+        updateMutation.mutate();
+      } else {
+        createMutation.mutate();
+      }
     }
   };
 
@@ -253,11 +429,13 @@ export default function ActivityForm({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        {editingActivity
+        {creatingWorkout
+          ? "Create Workout"
+          : editingActivity
           ? "Edit Activity"
           : `Schedule ${activityType === "quick_training" ? "Quick Training" : "Workout"}`}
       </DialogTitle>
-      <DialogContent sx={{ maxHeight: "70vh", overflowY: "auto" }}>
+      <DialogContent sx={{ maxHeight: creatingWorkout ? "85vh" : "70vh", overflowY: "auto" }}>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
 
@@ -280,30 +458,239 @@ export default function ActivityForm({
               ))}
             </TextField>
           ) : creatingWorkout ? (
-            // Navigate to full workout builder
-            <Stack spacing={2} sx={{ textAlign: "center", py: 3 }}>
-              <Alert severity="info">
-                You'll be taken to the full Workout Builder where you can add exercises, organize blocks, and create a complete workout.
-              </Alert>
-              <Stack direction="row" spacing={2}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={() => createWorkoutMutation.mutate()}
-                  fullWidth
+            // Full workout builder interface
+            <Stack spacing={2}>
+              {/* Basic Info */}
+              <TextField
+                label="Workout Title"
+                value={newWorkoutData.title}
+                onChange={(e) =>
+                  setNewWorkoutData({ ...newWorkoutData, title: e.target.value })
+                }
+                fullWidth
+                placeholder="e.g., Morning Run, Strength Training"
+                required
+              />
+              <TextField
+                label="Description"
+                value={newWorkoutData.description}
+                onChange={(e) =>
+                  setNewWorkoutData({ ...newWorkoutData, description: e.target.value })
+                }
+                fullWidth
+                multiline
+                rows={2}
+                placeholder="Describe your workout..."
+              />
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <TextField
+                  label="Difficulty Level"
+                  select
+                  value={newWorkoutData.difficulty_level}
+                  onChange={(e) =>
+                    setNewWorkoutData({
+                      ...newWorkoutData,
+                      difficulty_level: e.target.value as "beginner" | "intermediate" | "advanced" | "expert",
+                    })
+                  }
+                  sx={{ flex: 1 }}
                 >
-                  Open Workout Builder
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    setCreatingWorkout(false);
-                    setError("");
-                  }}
-                >
-                  Cancel
-                </Button>
-              </Stack>
+                  <MenuItem value="beginner">Beginner</MenuItem>
+                  <MenuItem value="intermediate">Intermediate</MenuItem>
+                  <MenuItem value="advanced">Advanced</MenuItem>
+                  <MenuItem value="expert">Expert</MenuItem>
+                </TextField>
+                <TextField
+                  label="Est. Duration (min)"
+                  type="number"
+                  value={newWorkoutData.estimated_duration_minutes || ""}
+                  onChange={(e) =>
+                    setNewWorkoutData({
+                      ...newWorkoutData,
+                      estimated_duration_minutes: e.target.value ? parseInt(e.target.value) : null,
+                    })
+                  }
+                  inputProps={{ min: 5, step: 5 }}
+                  sx={{ flex: 1 }}
+                />
+              </Box>
+
+              {/* Blocks */}
+              {newWorkoutData.blocks.length > 0 && (
+                <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                    Workout Blocks
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {newWorkoutData.blocks.map((block, blockIdx) => (
+                      <Card
+                        key={blockIdx}
+                        variant="outlined"
+                        sx={{ p: 1.5, bgcolor: "background.default" }}
+                      >
+                        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                          <Box sx={{ display: "flex", gap: 1, flex: 1 }}>
+                            <TextField
+                              select
+                              label="Type"
+                              size="small"
+                              value={block.block_type}
+                              onChange={(e) => updateBlock(blockIdx, "block_type", e.target.value)}
+                              sx={{ minWidth: 120 }}
+                            >
+                              <MenuItem value="warmup">Warmup</MenuItem>
+                              <MenuItem value="technique">Technique</MenuItem>
+                              <MenuItem value="rounds">Rounds</MenuItem>
+                              <MenuItem value="conditioning">Conditioning</MenuItem>
+                              <MenuItem value="cooldown">Cooldown</MenuItem>
+                            </TextField>
+                            <TextField
+                              label="Block Title"
+                              size="small"
+                              value={block.title}
+                              onChange={(e) => updateBlock(blockIdx, "title", e.target.value)}
+                              sx={{ flex: 1 }}
+                            />
+                          </Box>
+                          <Button
+                            size="small"
+                            color="error"
+                            onClick={() => removeBlock(blockIdx)}
+                          >
+                            Remove
+                          </Button>
+                        </Box>
+
+                        {/* Exercises in block */}
+                        {block.exercises.length > 0 && (
+                          <Stack spacing={0.75} sx={{ ml: 1, mb: 1, pl: 1, borderLeft: "2px solid", borderColor: "primary.main" }}>
+                            {block.exercises.map((exercise, exIdx) => (
+                              <Box
+                                key={exIdx}
+                                sx={{
+                                  display: "grid",
+                                  gridTemplateColumns: "1fr 60px 60px 60px 60px 40px",
+                                  gap: 0.75,
+                                  alignItems: "end",
+                                  bgcolor: "background.paper",
+                                  p: 0.75,
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <TextField
+                                  select
+                                  label="Exercise"
+                                  size="small"
+                                  value={exercise.exercise}
+                                  onChange={(e) =>
+                                    updateExerciseEntry(
+                                      blockIdx,
+                                      exIdx,
+                                      "exercise",
+                                      parseInt(e.target.value)
+                                    )
+                                  }
+                                  fullWidth
+                                >
+                                  <MenuItem value={0} disabled>
+                                    Select exercise
+                                  </MenuItem>
+                                  {exercises.map((ex: any) => (
+                                    <MenuItem key={ex.id} value={ex.id}>
+                                      {ex.title}
+                                    </MenuItem>
+                                  ))}
+                                </TextField>
+                                <TextField
+                                  label="Sets"
+                                  type="number"
+                                  size="small"
+                                  value={exercise.sets || ""}
+                                  onChange={(e) =>
+                                    updateExerciseEntry(
+                                      blockIdx,
+                                      exIdx,
+                                      "sets",
+                                      e.target.value ? parseInt(e.target.value) : null
+                                    )
+                                  }
+                                />
+                                <TextField
+                                  label="Reps"
+                                  type="number"
+                                  size="small"
+                                  value={exercise.reps || ""}
+                                  onChange={(e) =>
+                                    updateExerciseEntry(
+                                      blockIdx,
+                                      exIdx,
+                                      "reps",
+                                      e.target.value ? parseInt(e.target.value) : null
+                                    )
+                                  }
+                                />
+                                <TextField
+                                  label="Work"
+                                  type="number"
+                                  size="small"
+                                  value={exercise.work_seconds || ""}
+                                  onChange={(e) =>
+                                    updateExerciseEntry(
+                                      blockIdx,
+                                      exIdx,
+                                      "work_seconds",
+                                      e.target.value ? parseInt(e.target.value) : null
+                                    )
+                                  }
+                                />
+                                <TextField
+                                  label="Rest"
+                                  type="number"
+                                  size="small"
+                                  value={exercise.rest_seconds || ""}
+                                  onChange={(e) =>
+                                    updateExerciseEntry(
+                                      blockIdx,
+                                      exIdx,
+                                      "rest_seconds",
+                                      e.target.value ? parseInt(e.target.value) : null
+                                    )
+                                  }
+                                />
+                                <Button
+                                  size="small"
+                                  color="error"
+                                  sx={{ minWidth: 40 }}
+                                  onClick={() => removeExerciseFromBlock(blockIdx, exIdx)}
+                                >
+                                  ×
+                                </Button>
+                              </Box>
+                            ))}
+                          </Stack>
+                        )}
+
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => addExerciseToBlock(blockIdx)}
+                          sx={{ mt: 0.75 }}
+                        >
+                          + Add Exercise
+                        </Button>
+                      </Card>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              <Button
+                variant="outlined"
+                onClick={addBlock}
+                fullWidth
+              >
+                + Add Block
+              </Button>
             </Stack>
           ) : (
             <Stack spacing={1}>
@@ -542,7 +929,7 @@ export default function ActivityForm({
         </Box>
       </DialogContent>
       <DialogActions>
-        {editingActivity && (
+        {!creatingWorkout && editingActivity && (
           <Button
             onClick={() => deleteMutation.mutate()}
             color="error"
@@ -552,7 +939,7 @@ export default function ActivityForm({
             Delete
           </Button>
         )}
-        {editingActivity && activityType === "workout" && selectedWorkoutDetails && (
+        {!creatingWorkout && editingActivity && activityType === "workout" && selectedWorkoutDetails && (
           <Button
             component="a"
             href={`/workouts/${selectedWorkoutDetails.slug}`}
@@ -563,8 +950,18 @@ export default function ActivityForm({
             Edit Workout
           </Button>
         )}
-        <Button onClick={onClose} disabled={isLoading}>
-          Cancel
+        <Button 
+          onClick={() => {
+            if (creatingWorkout) {
+              setCreatingWorkout(false);
+              setError("");
+            } else {
+              onClose();
+            }
+          }}
+          disabled={isLoading}
+        >
+          {creatingWorkout ? "Back" : "Cancel"}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -574,7 +971,11 @@ export default function ActivityForm({
             bgcolor: activityType === "quick_training" ? "info.main" : "success.main",
           }}
         >
-          {editingActivity ? "Update" : "Create"}
+          {creatingWorkout
+            ? "Create Workout"
+            : editingActivity
+            ? "Update"
+            : "Schedule"}
         </Button>
       </DialogActions>
     </Dialog>

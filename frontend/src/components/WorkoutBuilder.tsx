@@ -214,7 +214,7 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
                     textTransform: "uppercase",
                   }}
                 >
-                  {item.type === "warmup" ? "Incalzire" : item.type === "cooldown" ? "Recuperare" : "Odihna"}
+                  {item.type === "warmup" ? "Warm Up" : item.type === "cooldown" ? "Cool Down" : "Rest"}
                 </Typography>
               </Box>
             )}
@@ -225,7 +225,7 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
                 {/* Exercise Selection - includes special items */}
                 <TextField
                   select
-                  label="Exercitiu"
+                  label="Exercise"
                   size="small"
                   value={(item as Exercise).exercise}
                   onChange={(e) => {
@@ -243,13 +243,13 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
                   fullWidth
                 >
                   <MenuItem value={0} disabled>
-                    Selecteaza exercitiu
+                    Select Exercise
                   </MenuItem>
                   
                   {/* Special Items Group */}
-                  <MenuItem value={-1}>Odihna</MenuItem>
-                  <MenuItem value={-2}>Recuperare</MenuItem>
-                  <MenuItem value={-3}>Incalzire</MenuItem>
+                  <MenuItem value={-1}>Rest</MenuItem>
+                  <MenuItem value={-2}>Cool Down</MenuItem>
+                  <MenuItem value={-3}>Warm Up</MenuItem>
                   
                   {/* Regular Exercises Group */}
                   {allExercises?.length > 0 && <MenuItem disabled sx={{ fontWeight: "bold" }}>─ Exercitii ─</MenuItem>}

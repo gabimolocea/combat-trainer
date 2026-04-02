@@ -18,6 +18,7 @@ import {
   Typography,
 } from "@mui/material";
 import api from "@/api/client";
+import WorkoutBuilder from "./WorkoutBuilder";
 
 interface ActivityFormProps {
   open: boolean;

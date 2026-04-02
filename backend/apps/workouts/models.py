@@ -67,10 +67,9 @@ class Workout(models.Model):
 class WorkoutBlock(models.Model):
     class BlockType(models.TextChoices):
         WARMUP = "warmup", "Warmup"
-        TECHNIQUE = "technique", "Technique"
-        ROUNDS = "rounds", "Rounds"
-        CONDITIONING = "conditioning", "Conditioning"
+        TRAINING = "training", "Training"
         COOLDOWN = "cooldown", "Cooldown"
+        REST = "rest", "Rest"
 
     workout = models.ForeignKey(
         Workout, on_delete=models.CASCADE, related_name="blocks"

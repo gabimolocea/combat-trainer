@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { calendarAPI } from "@/api/calendar";
 import type { TrainingType, Workout } from "@/types";
 import {
@@ -34,6 +35,7 @@ export default function ActivityForm({
   activityType,
   editingActivity,
 }: ActivityFormProps) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     training_type: "",
@@ -43,12 +45,6 @@ export default function ActivityForm({
   });
   const [error, setError] = useState("");
   const [creatingWorkout, setCreatingWorkout] = useState(false);
-  const [newWorkoutData, setNewWorkoutData] = useState({
-    title: "",
-    description: "",
-    difficulty_level: "beginner" as "beginner" | "intermediate" | "advanced" | "expert",
-    estimated_duration_minutes: null as number | null,
-  });
 
   // Fetch training types
   const { data: trainingTypes = [] } = useQuery<TrainingType[]>({
@@ -224,40 +220,11 @@ export default function ActivityForm({
   // Create new workout mutation
   const createWorkoutMutation = useMutation({
     mutationFn: async () => {
-      if (!newWorkoutData.title.trim()) {
-        setError("Workout title is required");
-        return Promise.reject("Workout title required");
-      }
-      return api.post("/workouts/", {
-        title: newWorkoutData.title.trim(),
-        description: newWorkoutData.description.trim(),
-        difficulty_level: newWorkoutData.difficulty_level,
-        estimated_duration_minutes: newWorkoutData.estimated_duration_minutes,
-        workout_type: null,
-        is_private: true,
+      // Navigate to workout builder - user will create there and come back
+      navigate("/workout-builder", {
+        state: { returnToDays: selectedDay, returnToCalendar: true },
       });
-    },
-    onSuccess: (response: any) => {
-      const newWorkoutId = response.data?.id;
-      if (!newWorkoutId) {
-        setError("Failed to get workout ID from response");
-        return;
-      }
-      queryClient.invalidateQueries({ queryKey: ["workouts-list"] });
-      queryClient.invalidateQueries({ queryKey: ["workout-details"] });
-      setFormData((prev) => ({ ...prev, workout: String(newWorkoutId) }));
-      setCreatingWorkout(false);
-      setNewWorkoutData({
-        title: "",
-        description: "",
-        difficulty_level: "beginner",
-        estimated_duration_minutes: null,
-      });
-      setError("");
-    },
-    onError: (err: any) => {
-      const message = err.response?.data?.detail || err.response?.data?.title?.[0] || "Failed to create workout";
-      setError(message);
+      return Promise.resolve();
     },
   });
 
@@ -312,86 +279,26 @@ export default function ActivityForm({
               ))}
             </TextField>
           ) : creatingWorkout ? (
-            // Create new workout form
-            <Stack spacing={2}>
-              <TextField
-                label="Workout Title"
-                value={newWorkoutData.title}
-                onChange={(e) =>
-                  setNewWorkoutData({ ...newWorkoutData, title: e.target.value })
-                }
-                fullWidth
-                placeholder="e.g., Morning Run, Strength Training"
-                autoFocus
-                required
-              />
-              <TextField
-                label="Description"
-                value={newWorkoutData.description}
-                onChange={(e) =>
-                  setNewWorkoutData({ ...newWorkoutData, description: e.target.value })
-                }
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="Describe your workout..."
-              />
-              <TextField
-                label="Difficulty Level"
-                select
-                value={newWorkoutData.difficulty_level}
-                onChange={(e) =>
-                  setNewWorkoutData({
-                    ...newWorkoutData,
-                    difficulty_level: e.target.value as "beginner" | "intermediate" | "advanced" | "expert",
-                  })
-                }
-                fullWidth
-              >
-                <MenuItem value="beginner">Beginner</MenuItem>
-                <MenuItem value="intermediate">Intermediate</MenuItem>
-                <MenuItem value="advanced">Advanced</MenuItem>
-                <MenuItem value="expert">Expert</MenuItem>
-              </TextField>
-              <TextField
-                label="Estimated Duration (minutes)"
-                type="number"
-                value={newWorkoutData.estimated_duration_minutes || ""}
-                onChange={(e) =>
-                  setNewWorkoutData({
-                    ...newWorkoutData,
-                    estimated_duration_minutes: e.target.value
-                      ? parseInt(e.target.value)
-                      : null,
-                  })
-                }
-                fullWidth
-                inputProps={{ min: 5, step: 5 }}
-              />
-              <Stack direction="row" spacing={1}>
+            // Navigate to full workout builder
+            <Stack spacing={2} sx={{ textAlign: "center", py: 3 }}>
+              <Alert severity="info">
+                You'll be taken to the full Workout Builder where you can add exercises, organize blocks, and create a complete workout.
+              </Alert>
+              <Stack direction="row" spacing={2}>
                 <Button
                   variant="contained"
+                  size="large"
                   onClick={() => createWorkoutMutation.mutate()}
-                  disabled={
-                    !newWorkoutData.title.trim() || createWorkoutMutation.isPending
-                  }
                   fullWidth
                 >
-                  Create & Select
+                  Open Workout Builder
                 </Button>
                 <Button
                   variant="outlined"
                   onClick={() => {
                     setCreatingWorkout(false);
-                    setNewWorkoutData({
-                      title: "",
-                      description: "",
-                      difficulty_level: "beginner",
-                      estimated_duration_minutes: null,
-                    });
                     setError("");
                   }}
-                  disabled={createWorkoutMutation.isPending}
                 >
                   Cancel
                 </Button>

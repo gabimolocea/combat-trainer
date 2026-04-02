@@ -93,13 +93,17 @@ export default function ActivityForm({
     ? (typeof editingActivity.workout === 'string' ? parseInt(editingActivity.workout) : editingActivity.workout)
     : (formData.workout ? parseInt(formData.workout) : null);
   
+  // Find the workout slug from the workouts list
+  const selectedWorkout = workouts.find(w => w.id === workoutId);
+  const workoutSlug = selectedWorkout?.slug;
+  
   const { data: selectedWorkoutDetails } = useQuery<Workout>({
-    queryKey: ["workout-details", workoutId],
+    queryKey: ["workout-details", workoutSlug],
     queryFn: () => {
-      if (!workoutId) return Promise.reject("No workout ID");
-      return api.get(`/workouts/${workoutId}/`).then((r) => r.data);
+      if (!workoutSlug) return Promise.reject("No workout slug");
+      return api.get(`/workouts/${workoutSlug}/`).then((r) => r.data);
     },
-    enabled: !!workoutId && activityType === "workout",
+    enabled: !!workoutSlug && activityType === "workout",
   });
 
   useEffect(() => {

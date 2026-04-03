@@ -63,7 +63,6 @@ interface WorkoutBuilderState {
   title: string;
   description: string;
   difficulty_level: "beginner" | "intermediate" | "advanced" | "expert";
-  estimated_duration_minutes: number | null;
   items: WorkoutItem[];
 }
 
@@ -71,7 +70,6 @@ type WorkoutBuilderAction =
   | { type: "SET_TITLE"; payload: string }
   | { type: "SET_DESCRIPTION"; payload: string }
   | { type: "SET_DIFFICULTY"; payload: string }
-  | { type: "SET_DURATION"; payload: number | null }
   | { type: "ADD_ITEM"; payload: WorkoutItem }
   | { type: "REMOVE_ITEM"; payload: string }
   | { type: "UPDATE_ITEM"; payload: { itemId: string; updates: Partial<WorkoutItem> } }
@@ -83,7 +81,6 @@ const initialState: WorkoutBuilderState = {
   title: "",
   description: "",
   difficulty_level: "beginner",
-  estimated_duration_minutes: null,
   items: [],
 };
 
@@ -95,8 +92,6 @@ function workoutReducer(state: WorkoutBuilderState, action: WorkoutBuilderAction
       return { ...state, description: action.payload };
     case "SET_DIFFICULTY":
       return { ...state, difficulty_level: action.payload as any };
-    case "SET_DURATION":
-      return { ...state, estimated_duration_minutes: action.payload };
     case "ADD_ITEM":
       return { ...state, items: [...state.items, action.payload] };
     case "REMOVE_ITEM":
@@ -412,6 +407,32 @@ function DraggableWorkoutItem({ item, allExercises, onUpdate, onDelete, onChange
   );
 }
 
+// Calculate total duration in minutes from workout items
+function calculateTotalDuration(items: WorkoutItem[]): number {
+  let totalSeconds = 0;
+  
+  items.forEach((item) => {
+    if (item.type === "exercise") {
+      const ex = item as Exercise;
+      // Add work time
+      if (ex.parameterType === "sets_reps" && ex.sets && ex.reps) {
+        // Estimate ~3 seconds per rep as default
+        totalSeconds += (ex.sets * ex.reps * 3) + (ex.rest_seconds || 0);
+      } else if (ex.parameterType === "time" && ex.work_seconds) {
+        totalSeconds += ex.work_seconds + (ex.rest_seconds || 0);
+      }
+    } else {
+      // Special sections (warm up, cool down, rest)
+      const special = item as SpecialSection;
+      if (special.parameterType === "time" && special.duration_seconds) {
+        totalSeconds += special.duration_seconds;
+      }
+    }
+  });
+  
+  return Math.round(totalSeconds / 60);
+}
+
 interface WorkoutBuilderProps {
   initialState?: WorkoutBuilderState;
   exercises?: any[];
@@ -503,24 +524,17 @@ export default function WorkoutBuilder({
             <MenuItem value="advanced">Advanced</MenuItem>
             <MenuItem value="expert">Expert</MenuItem>
           </TextField>
-          <TextField
-            label="Est. Duration (min)"
-            type="number"
-            value={state.estimated_duration_minutes || ""}
-            onChange={(e) =>
-              dispatch({
-                type: "SET_DURATION",
-                payload: e.target.value ? parseInt(e.target.value) : null,
-              })
-            }
-            inputProps={{ min: 5, step: 5 }}
-          />
         </Box>
       </Stack>
-      <Box sx={{ borderTop: "2px solid", borderColor: "divider", pt: 2 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2 }}>
-          Workout Items
-        </Typography>
+      <Box sx={{ borderTop: "2px solid", borderColor: "divider", pt: 2, pb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+            Workout Items
+          </Typography>
+          <Typography variant="caption" color="textSecondary">
+            Total Duration: {calculateTotalDuration(state.items)} min
+          </Typography>
+        </Box>
 
         {state.items.length > 0 ? (
           <DndContext

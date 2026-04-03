@@ -28,6 +28,30 @@ interface ActivityFormProps {
   editingActivity?: any;
 }
 
+// Calculate total duration in minutes from workout items
+function calculateWorkoutDuration(items: any[]): number {
+  let totalSeconds = 0;
+  
+  items.forEach((item) => {
+    if (item.type === "exercise") {
+      // Add work time
+      if (item.parameterType === "sets_reps" && item.sets && item.reps) {
+        // Estimate ~3 seconds per rep as default
+        totalSeconds += (item.sets * item.reps * 3) + (item.rest_seconds || 0);
+      } else if (item.parameterType === "time" && item.work_seconds) {
+        totalSeconds += item.work_seconds + (item.rest_seconds || 0);
+      }
+    } else {
+      // Special sections (warm up, cool down, rest)
+      if (item.parameterType === "time" && item.duration_seconds) {
+        totalSeconds += item.duration_seconds;
+      }
+    }
+  });
+  
+  return Math.round(totalSeconds / 60);
+}
+
 export default function ActivityForm({
   open,
   onClose,
@@ -243,11 +267,14 @@ export default function ActivityForm({
 
       // Convert WorkoutBuilder format (mixed exercises and special sections) to backend API format
       // At backend, everything goes into training block
+      // Calculate estimated duration from items
+      const estimatedDuration = calculateWorkoutDuration(workoutBuilderData.items);
+      
       const payload = {
         title: workoutBuilderData.title.trim(),
         description: workoutBuilderData.description?.trim() || "",
         difficulty_level: workoutBuilderData.difficulty_level || "beginner",
-        estimated_duration_minutes: workoutBuilderData.estimated_duration_minutes,
+        estimated_duration_minutes: estimatedDuration,
         blocks: [
           {
             block_type: "training",

@@ -596,7 +596,7 @@ export default function WorkoutBuilder({
           fullWidth
           sx={{ mt: 2 }}
         >
-          + Adauga
+          Add
         </Button>
       </Box>
     </Stack>

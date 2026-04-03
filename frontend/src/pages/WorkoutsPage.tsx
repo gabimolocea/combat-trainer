@@ -11,6 +11,10 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Grid,
   IconButton,
   MenuItem,
@@ -19,6 +23,7 @@ import {
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -26,51 +31,225 @@ import BookmarkIcon from "@mui/icons-material/Bookmark";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import AddIcon from "@mui/icons-material/Add";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { useAuth } from "@/features/auth/AuthContext";
+
+/* ─── Edit Workout Dialog ─── */
+function EditWorkoutDialog({
+  workout,
+  open,
+  onClose,
+  onSaved,
+}: {
+  workout: Workout;
+  open: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(workout.title);
+  const [description, setDescription] = useState(workout.description ?? "");
+  const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced" | "expert">(workout.difficulty_level);
+  const [error, setError] = useState("");
+
+  const update = useMutation({
+    mutationFn: () =>
+      api.patch(`/workouts/${workout.slug}/`, { title, description, difficulty_level: difficulty }),
+    onSuccess: () => {
+      setError("");
+      onSaved();
+      onClose();
+    },
+    onError: () => setError("Failed to update workout."),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>Edit Workout</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
+          <TextField
+            label="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            fullWidth
+            required
+          />
+          <TextField
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            fullWidth
+            multiline
+            rows={3}
+          />
+          <TextField
+            select
+            label="Difficulty"
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as "beginner" | "intermediate" | "advanced" | "expert")}
+            fullWidth
+          >
+            {["beginner", "intermediate", "advanced", "expert"].map((d) => (
+              <MenuItem key={d} value={d} sx={{ textTransform: "capitalize" }}>
+                {d.charAt(0).toUpperCase() + d.slice(1)}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          onClick={() => update.mutate()}
+          disabled={!title.trim() || update.isPending}
+        >
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* ─── Delete Confirm Dialog ─── */
+function DeleteConfirmDialog({
+  workout,
+  open,
+  onClose,
+  onDeleted,
+}: {
+  workout: Workout;
+  open: boolean;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [error, setError] = useState("");
+
+  const del = useMutation({
+    mutationFn: () => api.delete(`/workouts/${workout.slug}/`),
+    onSuccess: () => {
+      onDeleted();
+      onClose();
+    },
+    onError: () => setError("Failed to delete workout."),
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Delete Workout</DialogTitle>
+      <DialogContent>
+        {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+        <Typography>
+          Are you sure you want to delete <strong>{workout.title}</strong>? This cannot be undone.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={() => del.mutate()}
+          disabled={del.isPending}
+        >
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 /* ─── Shared workout card ─── */
 function WorkoutCard({
   workout,
   onToggleBookmark,
+  onEdited,
+  onDeleted,
 }: {
   workout: Workout;
   onToggleBookmark: (w: Workout) => void;
+  onEdited: () => void;
+  onDeleted: () => void;
 }) {
+  const { user } = useAuth();
+  const isOwner = user && workout.created_by?.id === user.id;
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   return (
-    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <CardContent sx={{ flex: 1 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-          <Typography
-            variant="h6"
-            component={RouterLink}
-            to={`/workouts/${workout.slug}`}
-            sx={{ textDecoration: "none", color: "inherit" }}
-          >
-            {workout.title}
-          </Typography>
-          <IconButton size="small" onClick={() => onToggleBookmark(workout)}>
-            {workout.is_bookmarked ? <BookmarkIcon color="primary" /> : <BookmarkBorderIcon />}
-          </IconButton>
-        </Stack>
-        {workout.description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            {workout.description.slice(0, 120)}
-            {workout.description.length > 120 ? "…" : ""}
-          </Typography>
-        )}
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
-          <Chip label={workout.difficulty_level} size="small" />
-          {workout.estimated_duration_minutes && (
-            <Chip label={`${workout.estimated_duration_minutes} min`} size="small" variant="outlined" />
+    <>
+      <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+        <CardContent sx={{ flex: 1 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+            <Typography
+              variant="h6"
+              component={RouterLink}
+              to={`/workouts/${workout.slug}`}
+              sx={{ textDecoration: "none", color: "inherit", flex: 1 }}
+            >
+              {workout.title}
+            </Typography>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              {isOwner && (
+                <>
+                  <Tooltip title="Edit">
+                    <IconButton size="small" onClick={() => setEditOpen(true)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" color="error" onClick={() => setDeleteOpen(true)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
+              <Tooltip title={workout.is_bookmarked ? "Remove bookmark" : "Bookmark"}>
+                <IconButton size="small" onClick={() => onToggleBookmark(workout)}>
+                  {workout.is_bookmarked ? <BookmarkIcon color="primary" /> : <BookmarkBorderIcon />}
+                </IconButton>
+              </Tooltip>
+            </Stack>
+          </Stack>
+          {workout.description && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {workout.description.slice(0, 120)}
+              {workout.description.length > 120 ? "…" : ""}
+            </Typography>
           )}
-          {workout.primary_style_name && (
-            <Chip label={workout.primary_style_name} size="small" variant="outlined" />
-          )}
-        </Stack>
-        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-          by {workout.created_by.username}
-        </Typography>
-      </CardContent>
-    </Card>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.5 }}>
+            <Chip label={workout.difficulty_level} size="small" />
+            {workout.estimated_duration_minutes && (
+              <Chip label={`${workout.estimated_duration_minutes} min`} size="small" variant="outlined" />
+            )}
+            {workout.primary_style_name && (
+              <Chip label={workout.primary_style_name} size="small" variant="outlined" />
+            )}
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+            by {workout.created_by.username}
+          </Typography>
+        </CardContent>
+      </Card>
+
+      {isOwner && editOpen && (
+        <EditWorkoutDialog
+          workout={workout}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={onEdited}
+        />
+      )}
+      {isOwner && deleteOpen && (
+        <DeleteConfirmDialog
+          workout={workout}
+          open={deleteOpen}
+          onClose={() => setDeleteOpen(false)}
+          onDeleted={onDeleted}
+        />
+      )}
+    </>
   );
 }
 
@@ -122,7 +301,12 @@ function WorkoutList({ owner }: { owner: "mine" | "community" }) {
         <Grid container spacing={2}>
           {data.results.map((w) => (
             <Grid key={w.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <WorkoutCard workout={w} onToggleBookmark={(w) => toggleBookmark.mutate(w)} />
+              <WorkoutCard
+                workout={w}
+                onToggleBookmark={(w) => toggleBookmark.mutate(w)}
+                onEdited={() => queryClient.invalidateQueries({ queryKey: ["workouts"] })}
+                onDeleted={() => queryClient.invalidateQueries({ queryKey: ["workouts"] })}
+              />
             </Grid>
           ))}
         </Grid>

@@ -46,11 +46,12 @@ class TrainingPlanDetailSerializer(serializers.ModelSerializer):
 
 class TrainingPlanCreateSerializer(serializers.ModelSerializer):
     weeks = TrainingPlanWeekSerializer(many=True, required=False)
+    id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = TrainingPlan
         fields = [
-            "title", "description", "visibility", "difficulty_level",
+            "id", "title", "description", "visibility", "difficulty_level",
             "duration_weeks", "primary_style", "tags", "weeks",
         ]
 

@@ -71,11 +71,13 @@ class WorkoutDetailSerializer(serializers.ModelSerializer):
 
 class WorkoutCreateSerializer(serializers.ModelSerializer):
     blocks = WorkoutBlockSerializer(many=True, required=False)
+    id = serializers.IntegerField(read_only=True)
+    slug = serializers.SlugField(read_only=True)
 
     class Meta:
         model = Workout
         fields = [
-            "title", "description", "visibility", "difficulty_level",
+            "id", "slug", "title", "description", "visibility", "difficulty_level",
             "estimated_duration_minutes", "primary_style",
             "workout_types", "body_parts", "equipment_used", "tags",
             "is_template", "blocks",

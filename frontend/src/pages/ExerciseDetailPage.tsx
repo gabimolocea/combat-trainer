@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import BodyMap from "@/components/BodyMap";
 
 export default function ExerciseDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -107,7 +106,7 @@ export default function ExerciseDetailPage() {
           <Stack spacing={2}>
             {exercise.instructions && (
               <Card>
-                <CardHeader title="Instructions" titleTypographyProps={{ variant: "subtitle1", fontWeight: 600 }} />
+                <CardHeader title="Starting Position" titleTypographyProps={{ variant: "subtitle1", fontWeight: 600 }} />
                 <CardContent>
                   <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
                     {exercise.instructions}
@@ -117,7 +116,7 @@ export default function ExerciseDetailPage() {
             )}
             {exercise.full_description && (
               <Card>
-                <CardHeader title="Description" titleTypographyProps={{ variant: "subtitle1", fontWeight: 600 }} />
+                <CardHeader title="Action" titleTypographyProps={{ variant: "subtitle1", fontWeight: 600 }} />
                 <CardContent>
                   <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
                     {exercise.full_description}
@@ -137,7 +136,7 @@ export default function ExerciseDetailPage() {
             )}
             {exercise.safety_notes && (
               <Card>
-                <CardHeader title="Safety Notes" titleTypographyProps={{ variant: "subtitle1", fontWeight: 600 }} />
+                <CardHeader title="Tips" titleTypographyProps={{ variant: "subtitle1", fontWeight: 600 }} />
                 <CardContent>
                   <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
                     {exercise.safety_notes}
@@ -149,12 +148,17 @@ export default function ExerciseDetailPage() {
         </Grid>
 
         <Grid size={{ xs: 12, lg: 4 }}>
-          {/* Body Map */}
-          {exercise.body_part_slugs && exercise.body_part_slugs.length > 0 && (
+          {exercise.muscle_groups && exercise.muscle_groups.length > 0 && (
             <Card sx={{ mb: 2 }}>
-              <CardHeader title="Muscle Groups" titleTypographyProps={{ variant: "subtitle2" }} />
-              <CardContent sx={{ pt: 0 }}>
-                <BodyMap activeSlugs={exercise.body_part_slugs} height={240} />
+              <CardHeader title="Primary Muscle Groups" titleTypographyProps={{ variant: "subtitle2" }} />
+              <CardContent>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  {exercise.muscle_groups.map((mg: { id: number; name: string; slug: string } | number) => {
+                    const name = typeof mg === "object" ? mg.name : String(mg);
+                    const key = typeof mg === "object" ? mg.id : mg;
+                    return <Chip key={key} label={name} size="small" />;
+                  })}
+                </Stack>
               </CardContent>
             </Card>
           )}
@@ -163,16 +167,6 @@ export default function ExerciseDetailPage() {
             <CardHeader title="Details" titleTypographyProps={{ variant: "subtitle2" }} />
             <CardContent>
               <Stack spacing={1.5}>
-                {exercise.duration_hint_seconds && (
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      Duration
-                    </Typography>
-                    <Typography variant="body2" fontWeight={600}>
-                      {exercise.duration_hint_seconds}s
-                    </Typography>
-                  </Box>
-                )}
                 <Box>
                   <Typography variant="body2" color="text.secondary">
                     Created by

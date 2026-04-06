@@ -9,6 +9,7 @@ router.register("body-parts", views.BodyPartViewSet)
 router.register("equipment", views.EquipmentViewSet)
 router.register("tags", views.TagViewSet)
 router.register("training-types", views.TrainingTypeViewSet)
+router.register("muscle-groups", views.MuscleGroupViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),

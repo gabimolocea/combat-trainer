@@ -149,7 +149,7 @@ export default function ActivityForm({
           workout: parseInt(formData.workout),
           scheduled_date: selectedDay,
           start_time: formData.start_time,
-          total_duration_minutes: formData.duration_minutes,
+          total_duration_minutes: selectedWorkoutDetails?.estimated_duration_minutes ?? 60,
         };
         console.log("📤 Creating workout with payload:", payload);
         return calendarAPI.createWorkout(payload);
@@ -188,7 +188,6 @@ export default function ActivityForm({
 
       const updateData = {
         start_time: formData.start_time,
-        duration_minutes: formData.duration_minutes,
       };
 
       if (activityType === "quick_training") {
@@ -199,6 +198,7 @@ export default function ActivityForm({
       } else {
         return calendarAPI.updateWorkout(editingActivity.id, {
           ...updateData,
+          duration_minutes: selectedWorkoutDetails?.estimated_duration_minutes ?? 60,
           workout: parseInt(formData.workout),
         });
       }
@@ -495,19 +495,6 @@ export default function ActivityForm({
                     InputLabelProps={{ shrink: true }}
                   />
                   <TextField
-                    type="number"
-                    label="Duration (minutes)"
-                    value={formData.duration_minutes}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        duration_minutes: parseInt(e.target.value),
-                      })
-                    }
-                    fullWidth
-                    inputProps={{ min: 5, step: 5 }}
-                  />
-                  <TextField
                     label="Date"
                     value={selectedDay || ""}
                     fullWidth
@@ -620,20 +607,6 @@ export default function ActivityForm({
                 }
                 fullWidth
                 InputLabelProps={{ shrink: true }}
-              />
-
-              <TextField
-                type="number"
-                label="Duration (minutes)"
-                value={formData.duration_minutes}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    duration_minutes: parseInt(e.target.value),
-                  })
-                }
-                fullWidth
-                inputProps={{ min: 5, step: 5 }}
               />
 
               <TextField

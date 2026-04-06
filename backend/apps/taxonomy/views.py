@@ -1,10 +1,10 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from .models import MartialStyle, WorkoutType, BodyPart, Equipment, Tag, TrainingType
+from .models import MartialStyle, WorkoutType, BodyPart, Equipment, Tag, TrainingType, MuscleGroup
 from .serializers import (
     MartialStyleSerializer, WorkoutTypeSerializer,
     BodyPartSerializer, EquipmentSerializer, TagSerializer,
-    TrainingTypeSerializer,
+    TrainingTypeSerializer, MuscleGroupSerializer,
 )
 
 
@@ -46,6 +46,13 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
 class TrainingTypeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TrainingType.objects.all()
     serializer_class = TrainingTypeSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    lookup_field = "slug"
+
+
+class MuscleGroupViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MuscleGroup.objects.all()
+    serializer_class = MuscleGroupSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     lookup_field = "slug"
 

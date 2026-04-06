@@ -444,7 +444,7 @@ export default function WorkoutBuilder({
   exercises = [], 
   onStateChange 
 }: WorkoutBuilderProps) {
-  const [state, dispatch] = useReducer(workoutReducer, initialState || initialData);
+  const [state, dispatch] = useReducer(workoutReducer, initialData || initialState);
 
   // Call onStateChange whenever state changes
   useEffect(() => {

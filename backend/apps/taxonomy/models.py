@@ -60,6 +60,17 @@ class Tag(models.Model):
         return self.name
 
 
+class MuscleGroup(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class TrainingType(models.Model):
     """Quick training types (Run, Cycling, Swimming, etc.)"""
     name = models.CharField(max_length=100, unique=True)

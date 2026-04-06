@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/api/client";
-import type { UserProfile, PaginatedResponse } from "@/types";
+import type { UserProfile } from "@/types";
 import {
   Alert,
   Avatar,
@@ -34,9 +34,9 @@ export default function ProfilePage() {
     queryFn: () => api.get("/profiles/me/").then((r) => r.data),
   });
 
-  const { data: styles } = useQuery<PaginatedResponse<TaxonomyItem>>({
+  const { data: styles } = useQuery<TaxonomyItem[]>({
     queryKey: ["martial-styles"],
-    queryFn: () => api.get("/taxonomy/styles/?page_size=100").then((r) => r.data),
+    queryFn: () => api.get("/taxonomy/styles/?page_size=100").then((r) => r.data.results ?? r.data),
   });
 
   const [form, setForm] = useState({
@@ -208,7 +208,7 @@ export default function ProfilePage() {
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     {profile.preferred_styles.map((sid) => {
-                      const style = styles?.results?.find((s) => s.id === sid);
+                      const style = styles?.find((s) => s.id === sid);
                       return (
                         <Chip
                           key={sid}

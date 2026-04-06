@@ -16,7 +16,7 @@ class ExerciseListSerializer(serializers.ModelSerializer):
         model = Exercise
         fields = [
             "id", "title", "slug", "short_description", "difficulty_level",
-            "duration_hint_seconds", "is_public", "created_by",
+            "is_public", "created_by",
             "primary_style", "primary_style_name", "body_part_slugs", "media",
             "created_at", "updated_at",
         ]
@@ -36,9 +36,9 @@ class ExerciseDetailSerializer(serializers.ModelSerializer):
         fields = [
             "id", "title", "slug", "short_description", "full_description",
             "instructions", "common_mistakes", "safety_notes",
-            "difficulty_level", "duration_hint_seconds", "is_public",
+            "difficulty_level", "is_public",
             "created_by", "primary_style", "workout_types", "body_parts",
-            "body_part_slugs",
+            "body_part_slugs", "muscle_groups",
             "equipment_required", "tags", "media", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "slug", "created_by", "created_at", "updated_at"]
@@ -53,15 +53,15 @@ class ExerciseCreateSerializer(serializers.ModelSerializer):
         fields = [
             "id", "slug", "title", "short_description", "full_description",
             "instructions", "common_mistakes", "safety_notes",
-            "difficulty_level", "duration_hint_seconds", "is_public",
-            "primary_style", "workout_types", "body_parts",
+            "difficulty_level", "is_public",
+            "primary_style", "workout_types", "body_parts", "muscle_groups",
             "equipment_required", "tags",
         ]
         read_only_fields = ["id", "slug"]
 
     def create(self, validated_data):
         m2m_fields = {}
-        for field in ["workout_types", "body_parts", "equipment_required", "tags"]:
+        for field in ["workout_types", "body_parts", "muscle_groups", "equipment_required", "tags"]:
             if field in validated_data:
                 m2m_fields[field] = validated_data.pop(field)
 
@@ -74,3 +74,18 @@ class ExerciseCreateSerializer(serializers.ModelSerializer):
             getattr(exercise, field).set(values)
 
         return exercise
+
+    def update(self, instance, validated_data):
+        m2m_fields = {}
+        for field in ["workout_types", "body_parts", "muscle_groups", "equipment_required", "tags"]:
+            if field in validated_data:
+                m2m_fields[field] = validated_data.pop(field)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        for field, values in m2m_fields.items():
+            getattr(instance, field).set(values)
+
+        return instance

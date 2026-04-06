@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
+import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 
 interface ExercisePreview {
   id: number;
@@ -115,14 +116,10 @@ export default function ExerciseSelector({
     }
   };
 
-  const getImageUrl = (item: SelectableItem) => {
-    if (isSpecial(item)) {
-      return "https://via.placeholder.com/400x500?text=" + item.title.replace(" ", "+");
-    }
-    if (item.media && item.media.length > 0) {
-      return item.media[0].image;
-    }
-    return "https://via.placeholder.com/400x500?text=No+Image";
+  const getImageUrl = (item: SelectableItem): string | null => {
+    if (isSpecial(item)) return null;
+    if (item.media && item.media.length > 0) return item.media[0].image;
+    return null;
   };
 
   return (
@@ -259,17 +256,37 @@ export default function ExerciseSelector({
           }}
         >
           {/* Item Image */}
-          <CardMedia
-            component="img"
-            image={getImageUrl(selectedItem)}
-            alt={selectedItem.title}
-            sx={{
-              height: 200,
-              objectFit: "cover",
-              borderRadius: 1,
-              mb: 2,
-            }}
-          />
+          {getImageUrl(selectedItem) ? (
+            <CardMedia
+              component="img"
+              image={getImageUrl(selectedItem)!}
+              alt={selectedItem.title}
+              sx={{
+                height: 200,
+                objectFit: "cover",
+                borderRadius: 1,
+                mb: 2,
+              }}
+            />
+          ) : (
+            <Box
+              sx={{
+                height: 200,
+                borderRadius: 1,
+                mb: 2,
+                bgcolor: "action.hover",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexDirection: "column",
+                gap: 1,
+                color: "text.disabled",
+              }}
+            >
+              <FitnessCenterIcon sx={{ fontSize: 48 }} />
+              <Typography variant="caption">{isSpecial(selectedItem) ? selectedItem.type : "No image"}</Typography>
+            </Box>
+          )}
 
           {/* Item Details */}
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>

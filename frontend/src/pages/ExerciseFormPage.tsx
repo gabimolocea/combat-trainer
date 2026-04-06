@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/api/client";
-import type { PaginatedResponse } from "@/types";
-import BodyMap from "@/components/BodyMap";
 import {
   Alert,
   Box,
@@ -31,11 +29,10 @@ interface ExerciseFormData {
   common_mistakes: string;
   safety_notes: string;
   difficulty_level: string;
-  duration_hint_seconds: number | null;
   is_public: boolean;
   primary_style: number | null;
   workout_types: number[];
-  body_parts: number[];
+  muscle_groups: number[];
   equipment_required: number[];
   tags: number[];
 }
@@ -48,11 +45,10 @@ const emptyForm: ExerciseFormData = {
   common_mistakes: "",
   safety_notes: "",
   difficulty_level: "beginner",
-  duration_hint_seconds: null,
   is_public: false,
   primary_style: null,
   workout_types: [],
-  body_parts: [],
+  muscle_groups: [],
   equipment_required: [],
   tags: [],
 };
@@ -66,29 +62,29 @@ export default function ExerciseFormPage() {
   const [form, setForm] = useState<ExerciseFormData>(emptyForm);
   const [error, setError] = useState("");
 
-  const { data: styles } = useQuery<PaginatedResponse<TaxonomyItem>>({
+  const { data: styles } = useQuery<TaxonomyItem[]>({
     queryKey: ["martial-styles"],
-    queryFn: () => api.get("/taxonomy/styles/?page_size=100").then((r) => r.data),
+    queryFn: () => api.get("/taxonomy/styles/?page_size=100").then((r) => r.data.results ?? r.data),
   });
 
-  const { data: workoutTypes } = useQuery<PaginatedResponse<TaxonomyItem>>({
+  const { data: workoutTypes } = useQuery<TaxonomyItem[]>({
     queryKey: ["workout-types"],
-    queryFn: () => api.get("/taxonomy/workout-types/?page_size=100").then((r) => r.data),
+    queryFn: () => api.get("/taxonomy/workout-types/?page_size=100").then((r) => r.data.results ?? r.data),
   });
 
-  const { data: bodyParts } = useQuery<PaginatedResponse<TaxonomyItem>>({
-    queryKey: ["body-parts"],
-    queryFn: () => api.get("/taxonomy/body-parts/?page_size=100").then((r) => r.data),
+  const { data: muscleGroups } = useQuery<TaxonomyItem[]>({
+    queryKey: ["muscle-groups"],
+    queryFn: () => api.get("/taxonomy/muscle-groups/?page_size=100").then((r) => r.data.results ?? r.data),
   });
 
-  const { data: equipment } = useQuery<PaginatedResponse<TaxonomyItem>>({
+  const { data: equipment } = useQuery<TaxonomyItem[]>({
     queryKey: ["equipment"],
-    queryFn: () => api.get("/taxonomy/equipment/?page_size=100").then((r) => r.data),
+    queryFn: () => api.get("/taxonomy/equipment/?page_size=100").then((r) => r.data.results ?? r.data),
   });
 
-  const { data: tags } = useQuery<PaginatedResponse<TaxonomyItem>>({
+  const { data: tags } = useQuery<TaxonomyItem[]>({
     queryKey: ["tags"],
-    queryFn: () => api.get("/taxonomy/tags/?page_size=100").then((r) => r.data),
+    queryFn: () => api.get("/taxonomy/tags/?page_size=100").then((r) => r.data.results ?? r.data),
   });
 
   const { data: existingExercise } = useQuery({
@@ -107,11 +103,10 @@ export default function ExerciseFormPage() {
         common_mistakes: existingExercise.common_mistakes ?? "",
         safety_notes: existingExercise.safety_notes ?? "",
         difficulty_level: existingExercise.difficulty_level ?? "beginner",
-        duration_hint_seconds: existingExercise.duration_hint_seconds ?? null,
         is_public: existingExercise.is_public ?? false,
         primary_style: existingExercise.primary_style ?? null,
         workout_types: existingExercise.workout_types ?? [],
-        body_parts: existingExercise.body_parts ?? [],
+        muscle_groups: existingExercise.muscle_groups ?? [],
         equipment_required: existingExercise.equipment_required ?? [],
         tags: existingExercise.tags ?? [],
       });
@@ -152,7 +147,7 @@ export default function ExerciseFormPage() {
   };
 
   const toggleM2M = (
-    field: "workout_types" | "body_parts" | "equipment_required" | "tags",
+    field: "workout_types" | "muscle_groups" | "equipment_required" | "tags",
     id: number
   ) => {
     setForm((prev) => ({
@@ -204,16 +199,6 @@ export default function ExerciseFormPage() {
               <MenuItem value="expert">Expert</MenuItem>
             </TextField>
             <TextField
-              label="Duration Hint (seconds)"
-              type="number"
-              fullWidth
-              value={form.duration_hint_seconds ?? ""}
-              onChange={(e) =>
-                setField("duration_hint_seconds", e.target.value ? Number(e.target.value) : null)
-              }
-              inputProps={{ min: 0 }}
-            />
-            <TextField
               select
               label="Primary Style"
               fullWidth
@@ -223,7 +208,7 @@ export default function ExerciseFormPage() {
               }
             >
               <MenuItem value="">— None —</MenuItem>
-              {styles?.results?.map((s) => (
+              {styles?.map((s) => (
                 <MenuItem key={s.id} value={s.id}>
                   {s.name}
                 </MenuItem>
@@ -236,40 +221,35 @@ export default function ExerciseFormPage() {
       <Card>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Content
+            Introduction
           </Typography>
           <Stack spacing={2}>
             <TextField
-              label="Full Description"
-              fullWidth
-              multiline
-              rows={4}
-              value={form.full_description}
-              onChange={(e) => setField("full_description", e.target.value)}
-            />
-            <TextField
-              label="Instructions"
-              fullWidth
-              multiline
-              rows={5}
-              value={form.instructions}
-              onChange={(e) => setField("instructions", e.target.value)}
-            />
-            <TextField
-              label="Common Mistakes"
+              label="Starting Position"
               fullWidth
               multiline
               rows={3}
-              value={form.common_mistakes}
-              onChange={(e) => setField("common_mistakes", e.target.value)}
+              value={form.instructions}
+              onChange={(e) => setField("instructions", e.target.value)}
+              placeholder="Describe the starting position..."
             />
             <TextField
-              label="Safety Notes"
+              label="Action"
+              fullWidth
+              multiline
+              rows={5}
+              value={form.full_description}
+              onChange={(e) => setField("full_description", e.target.value)}
+              placeholder="Describe the movement and action..."
+            />
+            <TextField
+              label="Tips"
               fullWidth
               multiline
               rows={3}
               value={form.safety_notes}
               onChange={(e) => setField("safety_notes", e.target.value)}
+              placeholder="Key tips and cues..."
             />
           </Stack>
         </CardContent>
@@ -283,37 +263,25 @@ export default function ExerciseFormPage() {
           <Stack spacing={3}>
             <ChipGroup
               label="Workout Types"
-              items={workoutTypes?.results ?? []}
+              items={workoutTypes ?? []}
               selected={form.workout_types}
               onToggle={(id) => toggleM2M("workout_types", id)}
             />
             <ChipGroup
-              label="Body Parts"
-              items={bodyParts?.results ?? []}
-              selected={form.body_parts}
-              onToggle={(id) => toggleM2M("body_parts", id)}
-            />
-            <BodyMap
-              activeSlugs={
-                (bodyParts?.results ?? [])
-                  .filter((bp) => form.body_parts.includes(bp.id))
-                  .map((bp) => bp.slug)
-              }
-              height={320}
-              onToggle={(slug) => {
-                const item = (bodyParts?.results ?? []).find((bp) => bp.slug === slug);
-                if (item) toggleM2M("body_parts", item.id);
-              }}
+              label="Primary Muscle Groups"
+              items={muscleGroups ?? []}
+              selected={form.muscle_groups}
+              onToggle={(id) => toggleM2M("muscle_groups", id)}
             />
             <ChipGroup
-              label="Equipment Required"
-              items={equipment?.results ?? []}
+              label="Machine Types"
+              items={equipment ?? []}
               selected={form.equipment_required}
               onToggle={(id) => toggleM2M("equipment_required", id)}
             />
             <ChipGroup
               label="Tags"
-              items={tags?.results ?? []}
+              items={tags ?? []}
               selected={form.tags}
               onToggle={(id) => toggleM2M("tags", id)}
             />

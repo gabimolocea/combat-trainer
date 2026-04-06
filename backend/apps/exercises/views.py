@@ -21,7 +21,7 @@ class ExerciseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Exercise.objects.select_related("created_by", "primary_style").prefetch_related(
-            "workout_types", "body_parts", "equipment_required", "tags", "media"
+            "workout_types", "body_parts", "muscle_groups", "equipment_required", "tags", "media"
         )
         if self.request.user.is_authenticated:
             return qs.filter(Q(is_public=True) | Q(created_by=self.request.user))

@@ -71,7 +71,6 @@ export interface Exercise {
   common_mistakes: string;
   safety_notes: string;
   difficulty_level: "beginner" | "intermediate" | "advanced" | "expert";
-  duration_hint_seconds: number | null;
   is_public: boolean;
   created_by: { id: number; username: string };
   primary_style: number | null;
@@ -79,6 +78,7 @@ export interface Exercise {
   workout_types: number[];
   body_parts: number[];
   body_part_slugs?: string[];
+  muscle_groups: number[];
   equipment_required: number[];
   tags: number[];
   media: ExerciseMedia[];

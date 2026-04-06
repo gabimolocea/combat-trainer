@@ -41,6 +41,9 @@ class Exercise(models.Model):
     body_parts = models.ManyToManyField(
         "taxonomy.BodyPart", blank=True, related_name="exercises"
     )
+    muscle_groups = models.ManyToManyField(
+        "taxonomy.MuscleGroup", blank=True, related_name="exercises"
+    )
     equipment_required = models.ManyToManyField(
         "taxonomy.Equipment", blank=True, related_name="exercises"
     )
